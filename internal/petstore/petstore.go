@@ -11,16 +11,17 @@ import (
 	v1 "github.com/plindsay/gopherservice/api/v1"
 )
 
-// Service implements the PetStoreService.
+// Service implements the PetStoreService, managing pets and orders in memory.
 type Service struct {
 	v1.UnimplementedPetStoreServiceServer
 	logger *zap.Logger
 	pets   map[string]*v1.Pet
 	orders map[string]*v1.Order
-	mu     sync.RWMutex
+	mu     sync.RWMutex // Mutex to protect concurrent access to pets and orders maps.
 }
 
-// NewService creates a new PetStore service.
+// NewService creates and returns a new PetStore service instance.
+// It initializes the in-memory storage for pets and orders.
 func NewService(logger *zap.Logger) *Service {
 	return &Service{
 		logger: logger,
@@ -29,8 +30,10 @@ func NewService(logger *zap.Logger) *Service {
 	}
 }
 
-// CreatePet creates a new pet.
-func (s *Service) CreatePet(ctx context.Context, req *v1.CreatePetRequest) (*v1.CreatePetResponse, error) {
+// CreatePet creates a new pet in the pet store.
+// It returns a CreatePetResponse containing the created pet or an error if the pet ID is invalid
+// or if a pet with the same ID already exists.
+func (s *Service) CreatePet(_ context.Context, req *v1.CreatePetRequest) (*v1.CreatePetResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -49,8 +52,9 @@ func (s *Service) CreatePet(ctx context.Context, req *v1.CreatePetRequest) (*v1.
 	return &v1.CreatePetResponse{Pet: pet}, nil
 }
 
-// GetPet gets a pet by its ID.
-func (s *Service) GetPet(ctx context.Context, req *v1.GetPetRequest) (*v1.GetPetResponse, error) {
+// GetPet retrieves a pet by its ID.
+// It returns a GetPetResponse containing the requested pet or an error if the pet is not found.
+func (s *Service) GetPet(_ context.Context, req *v1.GetPetRequest) (*v1.GetPetResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -62,8 +66,10 @@ func (s *Service) GetPet(ctx context.Context, req *v1.GetPetRequest) (*v1.GetPet
 	return &v1.GetPetResponse{Pet: pet}, nil
 }
 
-// PlaceOrder places an order for a pet.
-func (s *Service) PlaceOrder(ctx context.Context, req *v1.PlaceOrderRequest) (*v1.PlaceOrderResponse, error) {
+// PlaceOrder places a new order for a pet.
+// It returns a PlaceOrderResponse containing the placed order or an error if the order ID or pet ID is invalid,
+// if an order with the same ID already exists, or if the referenced pet does not exist.
+func (s *Service) PlaceOrder(_ context.Context, req *v1.PlaceOrderRequest) (*v1.PlaceOrderResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -89,8 +95,9 @@ func (s *Service) PlaceOrder(ctx context.Context, req *v1.PlaceOrderRequest) (*v
 	return &v1.PlaceOrderResponse{Order: order}, nil
 }
 
-// GetOrder gets an order by its ID.
-func (s *Service) GetOrder(ctx context.Context, req *v1.GetOrderRequest) (*v1.GetOrderResponse, error) {
+// GetOrder retrieves an order by its ID.
+// It returns a GetOrderResponse containing the requested order or an error if the order is not found.
+func (s *Service) GetOrder(_ context.Context, req *v1.GetOrderRequest) (*v1.GetOrderResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

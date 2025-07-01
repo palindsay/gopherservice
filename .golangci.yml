@@ -1,0 +1,46 @@
+run:
+  timeout: 5m
+issues:
+  exclude-dirs:
+    - third_party
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - revive
+    - govet
+    - staticcheck
+    - unused
+    - stylecheck
+    - godot
+  disable:
+    - gocyclo
+    - funlen
+    - gocognit
+    - godox
+    - wsl
+    - nlreturn
+    - testpackage
+    - paralleltest
+    - tparallel
+    - dupl
+    - exhaustruct
+    - gochecknoglobals
+    - gochecknoinits
+    - gocritic
+    - goconst
+    - gocyclo
+    - godox
+    - lll
+    - nestif
+    - noctx
+    - prealloc
+    - predeclared
+    - testpackage
+    - unparam
+    - whitespace
+    - wrapcheck
+    - wsl
+linters-settings:
+  revive:
+    preset: "google"

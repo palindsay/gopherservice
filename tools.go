@@ -1,5 +1,8 @@
 //go:build tools
 
+// Package tools is used to track Go tool dependencies.
+// These dependencies are not part of the main application build
+// but are required for development tasks like code generation.
 package tools
 
 import (

@@ -32,12 +32,16 @@ const (
 // PetStoreService is the service for managing pets and orders.
 type PetStoreServiceClient interface {
 	// CreatePet creates a new pet.
+	// This endpoint allows you to add a new pet to the pet store.
 	CreatePet(ctx context.Context, in *CreatePetRequest, opts ...grpc.CallOption) (*CreatePetResponse, error)
 	// GetPet gets a pet by its ID.
+	// This endpoint allows you to retrieve a pet from the pet store by its ID.
 	GetPet(ctx context.Context, in *GetPetRequest, opts ...grpc.CallOption) (*GetPetResponse, error)
 	// PlaceOrder places an order for a pet.
+	// This endpoint allows you to place an order for a pet.
 	PlaceOrder(ctx context.Context, in *PlaceOrderRequest, opts ...grpc.CallOption) (*PlaceOrderResponse, error)
 	// GetOrder gets an order by its ID.
+	// This endpoint allows you to retrieve an order by its ID.
 	GetOrder(ctx context.Context, in *GetOrderRequest, opts ...grpc.CallOption) (*GetOrderResponse, error)
 }
 
@@ -96,12 +100,16 @@ func (c *petStoreServiceClient) GetOrder(ctx context.Context, in *GetOrderReques
 // PetStoreService is the service for managing pets and orders.
 type PetStoreServiceServer interface {
 	// CreatePet creates a new pet.
+	// This endpoint allows you to add a new pet to the pet store.
 	CreatePet(context.Context, *CreatePetRequest) (*CreatePetResponse, error)
 	// GetPet gets a pet by its ID.
+	// This endpoint allows you to retrieve a pet from the pet store by its ID.
 	GetPet(context.Context, *GetPetRequest) (*GetPetResponse, error)
 	// PlaceOrder places an order for a pet.
+	// This endpoint allows you to place an order for a pet.
 	PlaceOrder(context.Context, *PlaceOrderRequest) (*PlaceOrderResponse, error)
 	// GetOrder gets an order by its ID.
+	// This endpoint allows you to retrieve an order by its ID.
 	GetOrder(context.Context, *GetOrderRequest) (*GetOrderResponse, error)
 	mustEmbedUnimplementedPetStoreServiceServer()
 }

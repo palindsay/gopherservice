@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -24,53 +25,61 @@ import (
 )
 
 var (
-	grpcPort = flag.Int("grpc-port", 8080, "The gRPC server port")
-	httpPort = flag.Int("http-port", 8081, "The HTTP server port")
+	grpcPort = flag.Int("grpc-port", getEnvAsInt("GRPC_PORT", 8080), "The gRPC server port")
+	httpPort = flag.Int("http-port", getEnvAsInt("HTTP_PORT", 8081), "The HTTP server port")
 )
 
+// main is the entry point of the gopherservice application.
 func main() {
 	flag.Parse()
 
-	// Initialize logger
+	// Initialize logger for structured logging.
 	logger, err := log.New()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
-	defer logger.Sync()
+	// Ensure all buffered log entries are flushed before exiting.
+	defer func() {
+		_ = logger.Sync()
+	}()
 
-	// Load configuration
+	// Load application configuration from config.yaml.
 	cfg, err := config.Load()
 	if err != nil {
 		logger.Fatal("failed to load configuration", zap.Error(err))
 	}
 
-	// Initialize telemetry
+	// Initialize OpenTelemetry tracer provider for distributed tracing.
 	tp, err := telemetry.NewTracerProvider(cfg.Telemetry.ServiceName, cfg.Telemetry.Endpoint)
 	if err != nil {
 		logger.Fatal("failed to initialize telemetry", zap.Error(err))
 	}
+	// Ensure the tracer provider is shut down gracefully on exit.
 	defer func() {
 		if err := tp.Shutdown(context.Background()); err != nil {
 			logger.Error("failed to shut down telemetry provider", zap.Error(err))
 		}
 	}()
 
-	// Create a context that is canceled on interruption
+	// Create a context that is canceled when an interrupt signal (e.g., Ctrl+C) is received.
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	// Run the gRPC and HTTP servers
+	// Run the gRPC and HTTP servers. This function blocks until the context is canceled.
 	if err := run(ctx, logger, cfg); err != nil {
 		logger.Fatal("server error", zap.Error(err))
 	}
 }
 
-func run(ctx context.Context, logger *zap.Logger, cfg *config.Config) error {
-	// Create a new PetStore service
+// run starts and manages the gRPC and HTTP servers.
+// It takes a context for graceful shutdown, a logger for logging, and the application configuration.
+// It returns an error if any server fails to start or encounters a critical issue.
+func run(ctx context.Context, logger *zap.Logger, _ *config.Config) error {
+	// Create a new PetStore service instance.
 	petStoreService := petstore.NewService(logger)
 
-	// Start the gRPC server
+	// Start the gRPC server in a goroutine.
 	grpcServer, lis, err := grpcserver.New(ctx, logger, *grpcPort, petStoreService)
 	if err != nil {
 		return fmt.Errorf("failed to create gRPC server: %w", err)
@@ -82,7 +91,8 @@ func run(ctx context.Context, logger *zap.Logger, cfg *config.Config) error {
 		}
 	}()
 
-	// Start the HTTP server (gRPC-Gateway)
+	// Start the HTTP server (gRPC-Gateway) in a goroutine.
+	// The gRPC-Gateway proxies HTTP requests to the gRPC server.
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	grpcEndpoint := fmt.Sprintf("localhost:%d", *grpcPort)
@@ -102,10 +112,10 @@ func run(ctx context.Context, logger *zap.Logger, cfg *config.Config) error {
 		}
 	}()
 
-	// Wait for the context to be canceled
+	// Wait for the context to be canceled (e.g., by an interrupt signal).
 	<-ctx.Done()
 
-	// Shut down the servers
+	// Perform graceful shutdown of both gRPC and HTTP servers.
 	logger.Info("shutting down servers")
 	grpcServer.GracefulStop()
 	if err := httpServer.Shutdown(context.Background()); err != nil {
@@ -113,4 +123,16 @@ func run(ctx context.Context, logger *zap.Logger, cfg *config.Config) error {
 	}
 
 	return nil
+}
+
+// getEnvAsInt retrieves an environment variable as an integer.
+// It takes the environment variable name and a default value.
+// If the environment variable is not set or cannot be parsed as an integer, the default value is returned.
+func getEnvAsInt(name string, defaultValue int) int {
+	if valueStr, ok := os.LookupEnv(name); ok {
+		if value, err := strconv.Atoi(valueStr); err == nil {
+			return value
+		}
+	}
+	return defaultValue
 }

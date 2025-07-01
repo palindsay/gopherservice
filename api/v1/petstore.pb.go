@@ -25,10 +25,14 @@ const (
 
 // Pet represents a pet in the pet store.
 type Pet struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Species       string                 `protobuf:"bytes,3,opt,name=species,proto3" json:"species,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The unique identifier for the pet.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// The name of the pet.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// The species of the pet.
+	Species string `protobuf:"bytes,3,opt,name=species,proto3" json:"species,omitempty"`
+	// The birth date of the pet.
 	BirthDate     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=birth_date,json=birthDate,proto3" json:"birth_date,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -94,10 +98,14 @@ func (x *Pet) GetBirthDate() *timestamppb.Timestamp {
 
 // Order represents an order for a pet.
 type Order struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	PetId         string                 `protobuf:"bytes,2,opt,name=pet_id,json=petId,proto3" json:"pet_id,omitempty"`
-	Quantity      int32                  `protobuf:"varint,3,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The unique identifier for the order.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// The ID of the pet being ordered.
+	PetId string `protobuf:"bytes,2,opt,name=pet_id,json=petId,proto3" json:"pet_id,omitempty"`
+	// The quantity of pets being ordered.
+	Quantity int32 `protobuf:"varint,3,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	// The date the order was placed.
 	OrderDate     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=order_date,json=orderDate,proto3" json:"order_date,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -163,8 +171,9 @@ func (x *Order) GetOrderDate() *timestamppb.Timestamp {
 
 // CreatePetRequest is the request to create a new pet.
 type CreatePetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pet           *Pet                   `protobuf:"bytes,1,opt,name=pet,proto3" json:"pet,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The pet to create.
+	Pet           *Pet `protobuf:"bytes,1,opt,name=pet,proto3" json:"pet,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -208,8 +217,9 @@ func (x *CreatePetRequest) GetPet() *Pet {
 
 // CreatePetResponse is the response after creating a new pet.
 type CreatePetResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pet           *Pet                   `protobuf:"bytes,1,opt,name=pet,proto3" json:"pet,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The created pet.
+	Pet           *Pet `protobuf:"bytes,1,opt,name=pet,proto3" json:"pet,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -253,8 +263,9 @@ func (x *CreatePetResponse) GetPet() *Pet {
 
 // GetPetRequest is the request to get a pet by its ID.
 type GetPetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The ID of the pet to retrieve.
+	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -298,8 +309,9 @@ func (x *GetPetRequest) GetId() string {
 
 // GetPetResponse is the response containing the pet.
 type GetPetResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pet           *Pet                   `protobuf:"bytes,1,opt,name=pet,proto3" json:"pet,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The retrieved pet.
+	Pet           *Pet `protobuf:"bytes,1,opt,name=pet,proto3" json:"pet,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -343,8 +355,9 @@ func (x *GetPetResponse) GetPet() *Pet {
 
 // PlaceOrderRequest is the request to place an order for a pet.
 type PlaceOrderRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Order         *Order                 `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The order to place.
+	Order         *Order `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -388,8 +401,9 @@ func (x *PlaceOrderRequest) GetOrder() *Order {
 
 // PlaceOrderResponse is the response after placing an order.
 type PlaceOrderResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Order         *Order                 `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The placed order.
+	Order         *Order `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -433,8 +447,9 @@ func (x *PlaceOrderResponse) GetOrder() *Order {
 
 // GetOrderRequest is the request to get an order by its ID.
 type GetOrderRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The ID of the order to retrieve.
+	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -478,8 +493,9 @@ func (x *GetOrderRequest) GetId() string {
 
 // GetOrderResponse is the response containing the order.
 type GetOrderResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Order         *Order                 `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The retrieved order.
+	Order         *Order `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
