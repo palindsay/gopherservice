@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/plindsay/gopherservice/api/v1";
+
+// Pet represents a pet in the pet store.
+message Pet {
+  string id = 1;
+  string name = 2;
+  string species = 3;
+  google.protobuf.Timestamp birth_date = 4;
+}
+
+// Order represents an order for a pet.
+message Order {
+  string id = 1;
+  string pet_id = 2;
+  int32 quantity = 3;
+  google.protobuf.Timestamp order_date = 4;
+}
+
+// CreatePetRequest is the request to create a new pet.
+message CreatePetRequest {
+  Pet pet = 1;
+}
+
+// CreatePetResponse is the response after creating a new pet.
+message CreatePetResponse {
+  Pet pet = 1;
+}
+
+// GetPetRequest is the request to get a pet by its ID.
+message GetPetRequest {
+  string id = 1;
+}
+
+// GetPetResponse is the response containing the pet.
+message GetPetResponse {
+  Pet pet = 1;
+}
+
+// PlaceOrderRequest is the request to place an order for a pet.
+message PlaceOrderRequest {
+  Order order = 1;
+}
+
+// PlaceOrderResponse is the response after placing an order.
+message PlaceOrderResponse {
+  Order order = 1;
+}
+
+// GetOrderRequest is the request to get an order by its ID.
+message GetOrderRequest {
+  string id = 1;
+}
+
+// GetOrderResponse is the response containing the order.
+message GetOrderResponse {
+  Order order = 1;
+}
+
+// PetStoreService is the service for managing pets and orders.
+service PetStoreService {
+  // CreatePet creates a new pet.
+  rpc CreatePet(CreatePetRequest) returns (CreatePetResponse) {
+    option (google.api.http) = {
+      post: "/v1/pets"
+      body: "*"
+    };
+  }
+
+  // GetPet gets a pet by its ID.
+  rpc GetPet(GetPetRequest) returns (GetPetResponse) {
+    option (google.api.http) = {
+      get: "/v1/pets/{id}"
+    };
+  }
+
+  // PlaceOrder places an order for a pet.
+  rpc PlaceOrder(PlaceOrderRequest) returns (PlaceOrderResponse) {
+    option (google.api.http) = {
+      post: "/v1/orders"
+      body: "*"
+    };
+  }
+
+  // GetOrder gets an order by its ID.
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse) {
+    option (google.api.http) = {
+      get: "/v1/orders/{id}"
+    };
+  }
+}

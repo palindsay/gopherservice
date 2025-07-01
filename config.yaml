@@ -1,0 +1,3 @@
+telemetry:
+  serviceName: "gopherservice"
+  endpoint: "localhost:4317"
