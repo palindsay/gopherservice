@@ -172,7 +172,7 @@ func (x *Order) GetOrderDate() *timestamppb.Timestamp {
 // CreatePetRequest is the request to create a new pet.
 type CreatePetRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The pet to create.
+	// The pet to create. The ID field will be ignored if provided.
 	Pet           *Pet `protobuf:"bytes,1,opt,name=pet,proto3" json:"pet,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

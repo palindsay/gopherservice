@@ -33,7 +33,7 @@ message Order {
 
 // CreatePetRequest is the request to create a new pet.
 message CreatePetRequest {
-  // The pet to create.
+  // The pet to create. The ID field will be ignored if provided.
   Pet pet = 1;
 }
 

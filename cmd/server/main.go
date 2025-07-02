@@ -53,12 +53,24 @@ func main() {
 	// Initialize OpenTelemetry tracer provider for distributed tracing.
 	tp, err := telemetry.NewTracerProvider(cfg.Telemetry.ServiceName, cfg.Telemetry.Endpoint)
 	if err != nil {
-		logger.Fatal("failed to initialize telemetry", zap.Error(err))
+		logger.Fatal("failed to initialize tracer provider", zap.Error(err))
 	}
 	// Ensure the tracer provider is shut down gracefully on exit.
 	defer func() {
 		if err := tp.Shutdown(context.Background()); err != nil {
-			logger.Error("failed to shut down telemetry provider", zap.Error(err))
+			logger.Error("failed to shut down tracer provider", zap.Error(err))
+		}
+	}()
+
+	// Initialize OpenTelemetry meter provider for metrics.
+	mp, err := telemetry.NewMeterProvider(cfg.Telemetry.ServiceName, cfg.Telemetry.Endpoint)
+	if err != nil {
+		logger.Fatal("failed to initialize meter provider", zap.Error(err))
+	}
+	// Ensure the meter provider is shut down gracefully on exit.
+	defer func() {
+		if err := mp.Shutdown(context.Background()); err != nil {
+			logger.Error("failed to shut down meter provider", zap.Error(err))
 		}
 	}()
 
