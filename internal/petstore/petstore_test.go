@@ -2,10 +2,11 @@ package petstore
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -14,7 +15,7 @@ import (
 
 // TestCreatePet tests the CreatePet method of the PetStore service.
 func TestCreatePet(t *testing.T) {
-	logger := zap.NewNop()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	s := NewService(logger)
 	ctx := context.Background()
 
@@ -43,7 +44,7 @@ func TestCreatePet(t *testing.T) {
 
 // TestGetPet tests the GetPet method of the PetStore service.
 func TestGetPet(t *testing.T) {
-	logger := zap.NewNop()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	s := NewService(logger)
 	ctx := context.Background()
 
@@ -63,7 +64,7 @@ func TestGetPet(t *testing.T) {
 
 // TestPlaceOrder tests the PlaceOrder method of the PetStore service.
 func TestPlaceOrder(t *testing.T) {
-	logger := zap.NewNop()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	s := NewService(logger)
 	ctx := context.Background()
 
@@ -109,7 +110,7 @@ func TestPlaceOrder(t *testing.T) {
 
 // TestGetOrder tests the GetOrder method of the PetStore service.
 func TestGetOrder(t *testing.T) {
-	logger := zap.NewNop()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	s := NewService(logger)
 	ctx := context.Background()
 

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(go mod:*)",
+      "Bash(make:*)",
+      "Bash(git clone:*)",
+      "Bash(gofmt:*)"
+    ],
+    "deny": []
+  }
+}

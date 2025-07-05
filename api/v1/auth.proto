@@ -1,0 +1,297 @@
+syntax = "proto3";
+
+package v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/plindsay/gopherservice/api/v1";
+
+// User represents a user in the system with authentication and profile information.
+message User {
+  // The unique identifier for the user.
+  string id = 1;
+  // The user's email address (used for login).
+  string email = 2;
+  // The user's full name.
+  string full_name = 3;
+  // The user's roles for authorization.
+  repeated string roles = 4;
+  // Whether the user account is active.
+  bool is_active = 5;
+  // When the user was created.
+  google.protobuf.Timestamp created_at = 6;
+  // When the user was last updated.
+  google.protobuf.Timestamp updated_at = 7;
+  // When the user last logged in.
+  google.protobuf.Timestamp last_login_at = 8;
+}
+
+// UserCredentials represents user login credentials.
+message UserCredentials {
+  // The user's email address.
+  string email = 1;
+  // The user's password.
+  string password = 2;
+}
+
+// JWTToken represents a JSON Web Token for authentication.
+message JWTToken {
+  // The access token for API requests.
+  string access_token = 1;
+  // The token type (usually "Bearer").
+  string token_type = 2;
+  // When the token expires (Unix timestamp).
+  int64 expires_at = 3;
+  // Optional refresh token for obtaining new access tokens.
+  string refresh_token = 4;
+  // Token scope/permissions.
+  repeated string scopes = 5;
+}
+
+// TokenClaims represents the claims embedded in a JWT token.
+message TokenClaims {
+  // The user ID.
+  string user_id = 1;
+  // The user's email.
+  string email = 2;
+  // The user's roles.
+  repeated string roles = 3;
+  // Token issuer.
+  string issuer = 4;
+  // Token subject.
+  string subject = 5;
+  // Token audience.
+  repeated string audience = 6;
+  // Issued at (Unix timestamp).
+  int64 issued_at = 7;
+  // Expires at (Unix timestamp).
+  int64 expires_at = 8;
+  // Not before (Unix timestamp).
+  int64 not_before = 9;
+}
+
+// RegisterUserRequest is the request to register a new user.
+message RegisterUserRequest {
+  // The user's email address.
+  string email = 1;
+  // The user's password.
+  string password = 2;
+  // The user's full name.
+  string full_name = 3;
+  // Optional roles to assign to the user.
+  repeated string roles = 4;
+}
+
+// RegisterUserResponse is the response after registering a new user.
+message RegisterUserResponse {
+  // The created user (without sensitive information).
+  User user = 1;
+  // Optional JWT token if auto-login is enabled.
+  JWTToken token = 2;
+}
+
+// LoginRequest is the request to authenticate a user.
+message LoginRequest {
+  // The user's credentials.
+  UserCredentials credentials = 1;
+  // Optional remember me flag for extended token lifetime.
+  bool remember_me = 2;
+}
+
+// LoginResponse is the response after successful authentication.
+message LoginResponse {
+  // The authenticated user.
+  User user = 1;
+  // The JWT token for API access.
+  JWTToken token = 2;
+}
+
+// LogoutRequest is the request to logout a user.
+message LogoutRequest {
+  // The token to invalidate.
+  string token = 1;
+}
+
+// LogoutResponse is the response after logging out.
+message LogoutResponse {
+  // Success message.
+  string message = 1;
+}
+
+// RefreshTokenRequest is the request to refresh an access token.
+message RefreshTokenRequest {
+  // The refresh token.
+  string refresh_token = 1;
+}
+
+// RefreshTokenResponse is the response with a new access token.
+message RefreshTokenResponse {
+  // The new JWT token.
+  JWTToken token = 1;
+}
+
+// ValidateTokenRequest is the request to validate a JWT token.
+message ValidateTokenRequest {
+  // The token to validate.
+  string token = 1;
+}
+
+// ValidateTokenResponse is the response with token validation results.
+message ValidateTokenResponse {
+  // Whether the token is valid.
+  bool is_valid = 1;
+  // The token claims if valid.
+  TokenClaims claims = 2;
+  // Error message if invalid.
+  string error_message = 3;
+}
+
+// GetUserRequest is the request to get user information.
+message GetUserRequest {
+  // The user ID to retrieve.
+  string user_id = 1;
+}
+
+// GetUserResponse is the response containing user information.
+message GetUserResponse {
+  // The user information.
+  User user = 1;
+}
+
+// UpdateUserRequest is the request to update user information.
+message UpdateUserRequest {
+  // The user ID to update.
+  string user_id = 1;
+  // The updated user information.
+  User user = 2;
+  // Fields to update (field mask).
+  repeated string update_mask = 3;
+}
+
+// UpdateUserResponse is the response after updating user information.
+message UpdateUserResponse {
+  // The updated user.
+  User user = 1;
+}
+
+// ChangePasswordRequest is the request to change a user's password.
+message ChangePasswordRequest {
+  // The user ID.
+  string user_id = 1;
+  // The current password.
+  string current_password = 2;
+  // The new password.
+  string new_password = 3;
+}
+
+// ChangePasswordResponse is the response after changing password.
+message ChangePasswordResponse {
+  // Success message.
+  string message = 1;
+}
+
+// ListUsersRequest is the request to list users with pagination.
+message ListUsersRequest {
+  // Maximum number of users to return.
+  int32 page_size = 1;
+  // Token for pagination.
+  string page_token = 2;
+  // Filter by active status.
+  optional bool is_active = 3;
+  // Filter by role.
+  string role_filter = 4;
+}
+
+// ListUsersResponse is the response containing a list of users.
+message ListUsersResponse {
+  // The list of users.
+  repeated User users = 1;
+  // Token for next page.
+  string next_page_token = 2;
+  // Total count of users.
+  int32 total_count = 3;
+}
+
+// AuthService provides authentication and user management functionality.
+// This service handles user registration, login, token management, and user CRUD operations.
+service AuthService {
+  // RegisterUser creates a new user account.
+  // This endpoint allows new users to register with email and password.
+  rpc RegisterUser(RegisterUserRequest) returns (RegisterUserResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/register"
+      body: "*"
+    };
+  }
+
+  // Login authenticates a user and returns a JWT token.
+  // This endpoint allows users to authenticate with their credentials.
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/login"
+      body: "*"
+    };
+  }
+
+  // Logout invalidates a user's token.
+  // This endpoint allows users to logout and invalidate their session.
+  rpc Logout(LogoutRequest) returns (LogoutResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/logout"
+      body: "*"
+    };
+  }
+
+  // RefreshToken obtains a new access token using a refresh token.
+  // This endpoint allows clients to refresh expired access tokens.
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/refresh"
+      body: "*"
+    };
+  }
+
+  // ValidateToken validates a JWT token and returns its claims.
+  // This endpoint is used by services to validate tokens.
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/validate"
+      body: "*"
+    };
+  }
+
+  // GetUser retrieves user information by ID.
+  // This endpoint requires authentication and appropriate permissions.
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {
+    option (google.api.http) = {
+      get: "/v1/users/{user_id}"
+    };
+  }
+
+  // UpdateUser updates user information.
+  // This endpoint requires authentication and appropriate permissions.
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse) {
+    option (google.api.http) = {
+      patch: "/v1/users/{user_id}"
+      body: "*"
+    };
+  }
+
+  // ChangePassword changes a user's password.
+  // This endpoint requires authentication.
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse) {
+    option (google.api.http) = {
+      post: "/v1/users/{user_id}/change-password"
+      body: "*"
+    };
+  }
+
+  // ListUsers lists users with pagination and filtering.
+  // This endpoint requires authentication and admin permissions.
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {
+    option (google.api.http) = {
+      get: "/v1/users"
+    };
+  }
+}

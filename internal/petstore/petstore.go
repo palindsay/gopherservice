@@ -2,21 +2,20 @@ package petstore
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	v1 "github.com/plindsay/gopherservice/api/v1"
+	"github.com/plindsay/gopherservice/pkg/errors"
 )
 
 // Service implements the PetStoreService, managing pets and orders in memory.
 type Service struct {
 	v1.UnimplementedPetStoreServiceServer
-	logger *zap.Logger
+	logger *slog.Logger
 	pets   map[string]*v1.Pet
 	orders map[string]*v1.Order
 	mu     sync.RWMutex // Mutex to protect concurrent access to pets and orders maps.
@@ -24,7 +23,7 @@ type Service struct {
 
 // NewService creates and returns a new PetStore service instance.
 // It initializes the in-memory storage for pets and orders.
-func NewService(logger *zap.Logger) *Service {
+func NewService(logger *slog.Logger) *Service {
 	return &Service{
 		logger: logger,
 		pets:   make(map[string]*v1.Pet),
@@ -41,15 +40,15 @@ func (s *Service) CreatePet(_ context.Context, req *v1.CreatePetRequest) (*v1.Cr
 
 	pet := req.GetPet()
 	if pet == nil {
-		return nil, status.Error(codes.InvalidArgument, "pet is required")
+		return nil, errors.NewValidationError("pet is required").ToGRPCStatus()
 	}
 
 	// Validate required fields
 	if pet.GetName() == "" {
-		return nil, status.Error(codes.InvalidArgument, "pet name is required")
+		return nil, errors.NewValidationError("pet name is required", "Name field cannot be empty").ToGRPCStatus()
 	}
 	if pet.GetSpecies() == "" {
-		return nil, status.Error(codes.InvalidArgument, "pet species is required")
+		return nil, errors.NewValidationError("pet species is required", "Species field cannot be empty").ToGRPCStatus()
 	}
 
 	// Auto-generate ID if not provided
@@ -64,14 +63,14 @@ func (s *Service) CreatePet(_ context.Context, req *v1.CreatePetRequest) (*v1.Cr
 
 	// Check if pet with this ID already exists
 	if _, exists := s.pets[pet.GetId()]; exists {
-		return nil, status.Errorf(codes.AlreadyExists, "pet with ID %q already exists", pet.GetId())
+		return nil, errors.NewConflictError("pet", pet.GetId()).ToGRPCStatus()
 	}
 
 	s.pets[pet.GetId()] = pet
 	s.logger.Info("created pet",
-		zap.String("id", pet.GetId()),
-		zap.String("name", pet.GetName()),
-		zap.String("species", pet.GetSpecies()),
+		slog.String("id", pet.GetId()),
+		slog.String("name", pet.GetName()),
+		slog.String("species", pet.GetSpecies()),
 	)
 
 	return &v1.CreatePetResponse{Pet: pet}, nil
@@ -84,12 +83,12 @@ func (s *Service) GetPet(_ context.Context, req *v1.GetPetRequest) (*v1.GetPetRe
 	defer s.mu.RUnlock()
 
 	if req.GetId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "pet ID is required")
+		return nil, errors.NewValidationError("pet ID is required", "ID field cannot be empty").ToGRPCStatus()
 	}
 
 	pet, exists := s.pets[req.GetId()]
 	if !exists {
-		return nil, status.Errorf(codes.NotFound, "pet with ID %q not found", req.GetId())
+		return nil, errors.NewNotFoundError("pet", req.GetId()).ToGRPCStatus()
 	}
 
 	return &v1.GetPetResponse{Pet: pet}, nil
@@ -104,15 +103,15 @@ func (s *Service) PlaceOrder(_ context.Context, req *v1.PlaceOrderRequest) (*v1.
 
 	order := req.GetOrder()
 	if order == nil {
-		return nil, status.Error(codes.InvalidArgument, "order is required")
+		return nil, errors.NewValidationError("order is required").ToGRPCStatus()
 	}
 
 	// Validate required fields
 	if order.GetPetId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "pet ID is required")
+		return nil, errors.NewValidationError("pet ID is required", "PetId field cannot be empty").ToGRPCStatus()
 	}
 	if order.GetQuantity() <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "quantity must be greater than 0")
+		return nil, errors.NewValidationError("quantity must be greater than 0", "Quantity must be a positive integer").ToGRPCStatus()
 	}
 
 	// Auto-generate ID if not provided
@@ -127,19 +126,19 @@ func (s *Service) PlaceOrder(_ context.Context, req *v1.PlaceOrderRequest) (*v1.
 
 	// Check if order with this ID already exists
 	if _, exists := s.orders[order.GetId()]; exists {
-		return nil, status.Errorf(codes.AlreadyExists, "order with ID %q already exists", order.GetId())
+		return nil, errors.NewConflictError("order", order.GetId()).ToGRPCStatus()
 	}
 
 	// Verify the pet exists
 	if _, exists := s.pets[order.GetPetId()]; !exists {
-		return nil, status.Errorf(codes.NotFound, "pet with ID %q not found", order.GetPetId())
+		return nil, errors.NewNotFoundError("pet", order.GetPetId()).WithMetadata("context", "pet required for order").ToGRPCStatus()
 	}
 
 	s.orders[order.GetId()] = order
 	s.logger.Info("placed order",
-		zap.String("id", order.GetId()),
-		zap.String("pet_id", order.GetPetId()),
-		zap.Int32("quantity", order.GetQuantity()),
+		slog.String("id", order.GetId()),
+		slog.String("pet_id", order.GetPetId()),
+		slog.Int("quantity", int(order.GetQuantity())),
 	)
 
 	return &v1.PlaceOrderResponse{Order: order}, nil
@@ -152,12 +151,12 @@ func (s *Service) GetOrder(_ context.Context, req *v1.GetOrderRequest) (*v1.GetO
 	defer s.mu.RUnlock()
 
 	if req.GetId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "order ID is required")
+		return nil, errors.NewValidationError("order ID is required", "ID field cannot be empty").ToGRPCStatus()
 	}
 
 	order, exists := s.orders[req.GetId()]
 	if !exists {
-		return nil, status.Errorf(codes.NotFound, "order with ID %q not found", req.GetId())
+		return nil, errors.NewNotFoundError("order", req.GetId()).ToGRPCStatus()
 	}
 
 	return &v1.GetOrderResponse{Order: order}, nil
