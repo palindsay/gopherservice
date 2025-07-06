@@ -224,7 +224,7 @@ func (s *Service) Logout(_ context.Context, req *v1.LogoutRequest) (*v1.LogoutRe
 }
 
 // RefreshToken obtains a new access token using a refresh token.
-func (s *Service) RefreshToken(ctx context.Context, req *v1.RefreshTokenRequest) (*v1.RefreshTokenResponse, error) {
+func (s *Service) RefreshToken(_ context.Context, req *v1.RefreshTokenRequest) (*v1.RefreshTokenResponse, error) {
 	if req.RefreshToken == "" {
 		return nil, errors.NewValidationError("refresh token is required", "RefreshToken field cannot be empty").ToGRPCStatus()
 	}
@@ -235,7 +235,7 @@ func (s *Service) RefreshToken(ctx context.Context, req *v1.RefreshTokenRequest)
 }
 
 // ValidateToken validates a JWT token and returns its claims.
-func (s *Service) ValidateToken(ctx context.Context, req *v1.ValidateTokenRequest) (*v1.ValidateTokenResponse, error) {
+func (s *Service) ValidateToken(_ context.Context, req *v1.ValidateTokenRequest) (*v1.ValidateTokenResponse, error) {
 	if req.Token == "" {
 		return nil, errors.NewValidationError("token is required", "Token field cannot be empty").ToGRPCStatus()
 	}
@@ -255,7 +255,7 @@ func (s *Service) ValidateToken(ctx context.Context, req *v1.ValidateTokenReques
 }
 
 // GetUser retrieves user information by ID.
-func (s *Service) GetUser(ctx context.Context, req *v1.GetUserRequest) (*v1.GetUserResponse, error) {
+func (s *Service) GetUser(_ context.Context, req *v1.GetUserRequest) (*v1.GetUserResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -274,7 +274,7 @@ func (s *Service) GetUser(ctx context.Context, req *v1.GetUserRequest) (*v1.GetU
 }
 
 // UpdateUser updates user information.
-func (s *Service) UpdateUser(ctx context.Context, req *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error) {
+func (s *Service) UpdateUser(_ context.Context, req *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -319,7 +319,7 @@ func (s *Service) UpdateUser(ctx context.Context, req *v1.UpdateUserRequest) (*v
 }
 
 // ChangePassword changes a user's password.
-func (s *Service) ChangePassword(ctx context.Context, req *v1.ChangePasswordRequest) (*v1.ChangePasswordResponse, error) {
+func (s *Service) ChangePassword(_ context.Context, req *v1.ChangePasswordRequest) (*v1.ChangePasswordResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -362,7 +362,7 @@ func (s *Service) ChangePassword(ctx context.Context, req *v1.ChangePasswordRequ
 }
 
 // ListUsers lists users with pagination and filtering.
-func (s *Service) ListUsers(ctx context.Context, req *v1.ListUsersRequest) (*v1.ListUsersResponse, error) {
+func (s *Service) ListUsers(_ context.Context, req *v1.ListUsersRequest) (*v1.ListUsersResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

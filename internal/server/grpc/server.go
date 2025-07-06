@@ -32,7 +32,7 @@ func New(_ context.Context, logger *slog.Logger, port int, petStoreService *pets
 	}
 
 	// Create authentication interceptor
-	authInterceptor := auth.NewAuthInterceptor(jwtManager, logger)
+	authInterceptor := auth.NewInterceptor(jwtManager, logger)
 
 	// Configure public methods (no authentication required)
 	authInterceptor.AddPublicMethod("/v1.AuthService/RegisterUser")
