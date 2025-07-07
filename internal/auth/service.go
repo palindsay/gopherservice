@@ -204,19 +204,7 @@ func (s *Service) RefreshToken(_ context.Context, req *v1.RefreshTokenRequest) (
 	return nil, errors.NewInternalError("refresh token functionality not implemented", nil).ToGRPCStatus()
 }
 
-// ValidateToken validates a JWT token.
-func (s *Service) ValidateToken(_ context.Context, req *v1.ValidateTokenRequest) (*v1.ValidateTokenResponse, error) {
-	if req.Token == "" {
-		return nil, errors.NewValidationError("token is required").ToGRPCStatus()
-	}
 
-	claims, err := s.jwtManager.ValidateToken(req.Token)
-	if err != nil {
-		return &v1.ValidateTokenResponse{IsValid: false, ErrorMessage: err.Error()}, nil
-	}
-
-	return &v1.ValidateTokenResponse{IsValid: true, Claims: claims}, nil
-}
 
 // GetUser retrieves a user by their ID.
 func (s *Service) GetUser(ctx context.Context, req *v1.GetUserRequest) (*v1.GetUserResponse, error) {
@@ -395,44 +383,4 @@ func (s *Service) ListUsers(ctx context.Context, req *v1.ListUsersRequest) (*v1.
 	}, nil
 }
 
-func (s *Service) DebugCreateUserAndToken(ctx context.Context, req *v1.DebugCreateUserAndTokenRequest) (*v1.DebugCreateUserAndTokenResponse, error) {
-	// Create user
-	registerReq := &v1.RegisterUserRequest{
-		Email:    req.Email,
-		Password: req.Password,
-		FullName: req.FullName,
-		Roles:    req.Roles,
-	}
-	_, err := s.RegisterUser(ctx, registerReq)
-	if err != nil {
-		// If the user already exists, just log in
-		if strings.Contains(err.Error(), "already exists") {
-			loginReq := &v1.LoginRequest{
-				Credentials: &v1.UserCredentials{
-					Email:    req.Email,
-					Password: req.Password,
-				},
-			}
-			loginResp, err := s.Login(ctx, loginReq)
-			if err != nil {
-				return nil, err
-			}
-			return &v1.DebugCreateUserAndTokenResponse{Token: loginResp.Token.AccessToken}, nil
-		}
-		return nil, err
-	}
 
-	// Log in to get token
-	loginReq := &v1.LoginRequest{
-		Credentials: &v1.UserCredentials{
-			Email:    req.Email,
-			Password: req.Password,
-		},
-	}
-	loginResp, err := s.Login(ctx, loginReq)
-	if err != nil {
-		return nil, err
-	}
-
-	return &v1.DebugCreateUserAndTokenResponse{Token: loginResp.Token.AccessToken}, nil
-}

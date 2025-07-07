@@ -12,6 +12,13 @@ A production-ready Go microservice implementing a Pet Store API with modern obse
 *   **OpenTelemetry** - Distributed tracing and metrics with exponential histograms
 *   **Structured Logging** - High-performance structured logging using `log/slog`
 
+### Authentication & Authorization
+*   **JWT-based Authentication**: Secure token generation and validation.
+*   **Refresh Tokens**: Mechanism for obtaining new access tokens without re-authentication.
+*   **gRPC Interceptors**: Centralized authentication and role-based authorization for gRPC endpoints.
+*   **Password Hashing**: Secure password storage using bcrypt.
+
+
 ### Production Features
 *   **Health Checks** - Standard gRPC health check protocol
 *   **Request Logging** - Structured logging with request/response details
@@ -106,6 +113,7 @@ Configure the service with these environment variables:
 ```bash
 export GRPC_PORT=8080          # gRPC server port
 export HTTP_PORT=8081          # HTTP gateway port
+export JWT_SECRET_KEY="your-secret-key" # Secret key for JWT signing (REQUIRED)
 ```
 
 ## Testing
@@ -142,7 +150,7 @@ To run the gRPC and HTTP examples, you need to start the `gopherservice` server 
 
 1.  **Start the `gopherservice` server in a separate terminal:**
     ```bash
-    DATABASE_DSN="/tmp/gopherservice.db" OTEL_EXPORTER_OTLP_ENDPOINT="" ./gopherservice
+    JWT_SECRET_KEY="supersecretjwtkey" DATABASE_DSN="/tmp/gopherservice.db" OTEL_EXPORTER_OTLP_ENDPOINT="" ./gopherservice
     ```
     (Keep this terminal open while running the client examples.)
 
@@ -160,12 +168,50 @@ To run the gRPC and HTTP examples, you need to start the `gopherservice` server 
 
 ### API Endpoints
 
-#### REST API (HTTP)
+#### Authentication (HTTP/REST)
 
-**Create a Pet:**
+**Register a User:**
+```bash
+curl -X POST http://localhost:8081/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "testuser@example.com",
+    "password": "password123",
+    "full_name": "Test User",
+    "roles": ["user"]
+  }'
+```
+
+**Login and Get Token:**
+```bash
+curl -X POST http://localhost:8081/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "credentials": {
+      "email": "testuser@example.com",
+      "password": "password123"
+    }
+  }'
+# Save the access_token and refresh_token from the response
+```
+
+**Refresh Token:**
+```bash
+curl -X POST http://localhost:8081/v1/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refresh_token": "YOUR_REFRESH_TOKEN"
+  }'
+# Get a new access_token
+```
+
+#### Authenticated PetStore API (HTTP/REST)
+
+**Create a Pet (requires authentication):**
 ```bash
 curl -X POST http://localhost:8081/v1/pets \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
     "pet": {
       "name": "Buddy",
@@ -174,15 +220,17 @@ curl -X POST http://localhost:8081/v1/pets \
   }'
 ```
 
-**Get a Pet:**
+**Get a Pet (requires authentication):**
 ```bash
-curl http://localhost:8081/v1/pets/{pet-id}
+curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  http://localhost:8081/v1/pets/{pet-id}
 ```
 
-**Place an Order:**
+**Place an Order (requires authentication):**
 ```bash
 curl -X POST http://localhost:8081/v1/orders \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
     "order": {
       "petId": "{pet-id}",
@@ -191,26 +239,49 @@ curl -X POST http://localhost:8081/v1/orders \
   }'
 ```
 
-**Get an Order:**
+**Get an Order (requires authentication):**
 ```bash
-curl http://localhost:8081/v1/orders/{order-id}
+curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  http://localhost:8081/v1/orders/{order-id}
 ```
 
 #### gRPC API
 
-Use tools like `grpcurl` or `evans` to interact with the gRPC API:
+Use tools like `grpcurl` or `evans` to interact with the gRPC API. For authenticated calls, you'll need to pass the JWT access token in the metadata.
 
+**Login and Get Token (gRPC):**
 ```bash
-# List available services
-grpcurl -plaintext localhost:8080 list
+grpcurl -plaintext -d '{
+  "credentials": {
+    "email": "testuser@example.com",
+    "password": "password123"
+  }
+}' localhost:8080 v1.AuthService/Login
+# Save the access_token and refresh_token from the response
+```
 
-# Health check
+**Create a Pet (requires authentication via gRPC):**
+```bash
+grpcurl -plaintext \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{
+    "pet": {
+      "name": "Buddy",
+      "species": "Dog"
+    }
+  }' localhost:8080 v1.PetStoreService/CreatePet
+```
+
+**Health check:**
+```bash
 grpcurl -plaintext localhost:8080 grpc.health.v1.Health/Check
+```
 
-# Create a pet
+**Create a pet (old example, now requires auth):**
+```bash
 grpcurl -plaintext -d '{
   "pet": {
-    "name": "Buddy", 
+    "name": "Buddy",
     "species": "Dog"
   }
 }' localhost:8080 v1.PetStoreService/CreatePet

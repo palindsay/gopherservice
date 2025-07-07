@@ -4,20 +4,22 @@ This directory contains examples of how to use the gRPC and HTTP REST clients fo
 
 ## Running the Examples
 
-Before running the examples, make sure the gopherservice is running. You can start it by running `make run` from the root of the project.
+These examples demonstrate the full authentication flow (user registration, login, and token refresh) before interacting with the PetStore service. Therefore, you need to ensure the `gopherservice` server is running with the `JWT_SECRET_KEY` environment variable set.
 
-### gRPC Client
+1.  **Start the `gopherservice` server in a separate terminal:**
+    ```bash
+    JWT_SECRET_KEY="supersecretjwtkey" DATABASE_DSN="/tmp/gopherservice.db" OTEL_EXPORTER_OTLP_ENDPOINT="" ./gopherservice
+    ```
+    (Keep this terminal open while running the client examples.)
 
-To run the gRPC client example, navigate to the `examples/grpc` directory and run the following command:
+2.  **In a new terminal, run the gRPC client example:**
+    ```bash
+    go run ./examples/grpc
+    ```
 
-```bash
-go run main.go
-```
+3.  **In another new terminal, run the HTTP client example:**
+    ```bash
+    go run ./examples/http
+    ```
 
-### HTTP REST Client
-
-To run the HTTP REST client example, navigate to the `examples/http` directory and run the following command:
-
-```bash
-go run main.go
-```
+4.  **To stop the `gopherservice` server, press `Ctrl+C` in the terminal where it's running.**

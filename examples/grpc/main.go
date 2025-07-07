@@ -6,6 +6,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 
 	v1 "github.com/plindsay/gopherservice/api/v1"
 )
@@ -37,9 +38,18 @@ func main() {
 
 	// Call the getPet function to retrieve the pet that was just created.
 	getPet(client, token)
+
+	// Refresh the token
+	newToken, err := refreshToken(authClient, token)
+	if err != nil {
+		log.Fatalf("could not refresh token: %v", err)
+	}
+
+	// Use the new token to get the pet again
+	getPet(client, newToken)
 }
 
-func getToken(client v1.AuthServiceClient) (string, error) {
+func getToken(client v1.AuthServiceClient) (*v1.JWTToken, error) {
 	log.Println("--- Registering User ---")
 	registerReq := &v1.RegisterUserRequest{
 		Email:    "test@example.com",
@@ -61,16 +71,16 @@ func getToken(client v1.AuthServiceClient) (string, error) {
 	}
 	loginRes, err := client.Login(context.Background(), loginReq)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	log.Println("Logged in successfully, got token.")
-	return loginRes.Token.AccessToken, nil
+	return loginRes.Token, nil
 }
 
 // createPet demonstrates how to create a new pet using the PetStoreServiceClient.
 // It takes a PetStoreServiceClient as input and attempts to create a pet with ID "1", Name "Fido", and Species "dog".
 // It logs the created pet or a fatal error if the creation fails.
-func createPet(client v1.PetStoreServiceClient, token string) {
+func createPet(client v1.PetStoreServiceClient, token *v1.JWTToken) {
 	log.Println("--- CreatePet ---")
 	pet := &v1.Pet{
 		Id:      "1",
@@ -78,7 +88,7 @@ func createPet(client v1.PetStoreServiceClient, token string) {
 		Species: "dog",
 	}
 	req := &v1.CreatePetRequest{Pet: pet}
-	ctx := context.WithValue(context.Background(), "authorization", "Bearer "+token)
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "authorization", "Bearer "+token.AccessToken)
 	res, err := client.CreatePet(ctx, req)
 	if err != nil {
 		log.Fatalf("could not create pet: %v", err)
@@ -89,13 +99,24 @@ func createPet(client v1.PetStoreServiceClient, token string) {
 // getPet demonstrates how to retrieve a pet by its ID using the PetStoreServiceClient.
 // It takes a PetStoreServiceClient as input and attempts to retrieve the pet with ID "1".
 // It logs the retrieved pet or a fatal error if the retrieval fails.
-func getPet(client v1.PetStoreServiceClient, token string) {
+func getPet(client v1.PetStoreServiceClient, token *v1.JWTToken) {
 	log.Println("--- GetPet ---")
 	req := &v1.GetPetRequest{Id: "1"}
-	ctx := context.WithValue(context.Background(), "authorization", "Bearer "+token)
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "authorization", "Bearer "+token.AccessToken)
 	res, err := client.GetPet(ctx, req)
 	if err != nil {
 		log.Fatalf("could not get pet: %v", err)
 	}
 	log.Printf("Got pet: %v", res.GetPet())
+}
+
+func refreshToken(client v1.AuthServiceClient, token *v1.JWTToken) (*v1.JWTToken, error) {
+	log.Println("--- Refreshing Token ---")
+	refreshReq := &v1.RefreshTokenRequest{RefreshToken: token.RefreshToken}
+	refreshRes, err := client.RefreshToken(context.Background(), refreshReq)
+	if err != nil {
+		return nil, err
+	}
+	log.Println("Token refreshed successfully.")
+	return refreshRes.Token, nil
 }

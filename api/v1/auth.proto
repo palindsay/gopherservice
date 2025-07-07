@@ -87,8 +87,7 @@ message RegisterUserRequest {
 message RegisterUserResponse {
   // The created user (without sensitive information).
   User user = 1;
-  // Optional JWT token if auto-login is enabled.
-  JWTToken token = 2;
+  
 }
 
 // LoginRequest is the request to authenticate a user.
@@ -131,21 +130,8 @@ message RefreshTokenResponse {
   JWTToken token = 1;
 }
 
-// ValidateTokenRequest is the request to validate a JWT token.
-message ValidateTokenRequest {
-  // The token to validate.
-  string token = 1;
-}
 
-// ValidateTokenResponse is the response with token validation results.
-message ValidateTokenResponse {
-  // Whether the token is valid.
-  bool is_valid = 1;
-  // The token claims if valid.
-  TokenClaims claims = 2;
-  // Error message if invalid.
-  string error_message = 3;
-}
+
 
 // GetUserRequest is the request to get user information.
 message GetUserRequest {
@@ -213,18 +199,7 @@ message ListUsersResponse {
   int32 total_count = 3;
 }
 
-// DebugCreateUserAndTokenRequest is the request to create a user and get a token for debugging.
-message DebugCreateUserAndTokenRequest {
-  string email = 1;
-  string password = 2;
-  string full_name = 3;
-  repeated string roles = 4;
-}
 
-// DebugCreateUserAndTokenResponse is the response containing the token.
-message DebugCreateUserAndTokenResponse {
-  string token = 1;
-}
 
 
 // AuthService provides authentication and user management functionality.
@@ -266,14 +241,7 @@ service AuthService {
     };
   }
 
-  // ValidateToken validates a JWT token and returns its claims.
-  // This endpoint is used by services to validate tokens.
-  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse) {
-    option (google.api.http) = {
-      post: "/v1/auth/validate"
-      body: "*"
-    };
-  }
+  
 
   // GetUser retrieves user information by ID.
   // This endpoint requires authentication and appropriate permissions.
@@ -309,11 +277,5 @@ service AuthService {
     };
   }
 
-  // DebugCreateUserAndToken creates a user and returns a token for debugging.
-  rpc DebugCreateUserAndToken(DebugCreateUserAndTokenRequest) returns (DebugCreateUserAndTokenResponse) {
-    option (google.api.http) = {
-      post: "/v1/debug/create-user-and-token"
-      body: "*"
-    };
-  }
+  
 }
