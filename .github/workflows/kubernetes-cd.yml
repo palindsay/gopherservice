@@ -1,0 +1,36 @@
+name: Kubernetes CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Kubeconfig (example - replace with your actual setup)
+        run: |
+          # This is a placeholder. You need to configure access to your Kubernetes cluster.
+          # Options include:
+          # 1. Using a service account token and configuring kubectl context.
+          # 2. Using OIDC for cloud providers (EKS, GKE, AKS).
+          # 3. Storing kubeconfig as a GitHub secret (less secure, but simple for testing).
+          echo "KUBECONFIG_CONTENT" | base64 --decode > ~/.kube/config
+          chmod 600 ~/.kube/config
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_BASE64 }} # Replace with your actual secret name
+
+      - name: Deploy to Kubernetes (example - replace with your actual deployment)
+        run: |
+          # This is a placeholder. Replace with your actual deployment commands.
+          # Examples:
+          # - kubectl apply -f kubernetes/gopherservice-deployment-service.yaml
+          # - helm upgrade --install my-app ./helm/my-app
+          # - kustomize build deploy/overlays/production | kubectl apply -f -
+          kubectl apply -f kubernetes/gopherservice-deployment-service.yaml
+          kubectl apply -f kubernetes/otel-collector-configmap.yaml
+          kubectl apply -f kubernetes/otel-collector-deployment-service.yaml
