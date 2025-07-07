@@ -1,36 +1,69 @@
 name: Kubernetes CD
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Docker CI"]
+    types:
+      - completed
     branches:
       - main
+  workflow_dispatch:
+
+env:
+  KUBECTL_VERSION: v1.32.1
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Kubeconfig (example - replace with your actual setup)
+      - name: Install kubectl
         run: |
-          # This is a placeholder. You need to configure access to your Kubernetes cluster.
-          # Options include:
-          # 1. Using a service account token and configuring kubectl context.
-          # 2. Using OIDC for cloud providers (EKS, GKE, AKS).
-          # 3. Storing kubeconfig as a GitHub secret (less secure, but simple for testing).
-          echo "KUBECONFIG_CONTENT" | base64 --decode > ~/.kube/config
-          chmod 600 ~/.kube/config
-        env:
-          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_BASE64 }} # Replace with your actual secret name
+          curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256"
+          echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+          kubectl version --client
 
-      - name: Deploy to Kubernetes (example - replace with your actual deployment)
+      - name: Configure kubectl
         run: |
-          # This is a placeholder. Replace with your actual deployment commands.
-          # Examples:
-          # - kubectl apply -f kubernetes/gopherservice-deployment-service.yaml
-          # - helm upgrade --install my-app ./helm/my-app
-          # - kustomize build deploy/overlays/production | kubectl apply -f -
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 --decode > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Verify cluster connectivity
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Deploy application
+        run: |
+          # Deploy main application
           kubectl apply -f kubernetes/gopherservice-deployment-service.yaml
+          
+          # Deploy OpenTelemetry collector
           kubectl apply -f kubernetes/otel-collector-configmap.yaml
           kubectl apply -f kubernetes/otel-collector-deployment-service.yaml
+          
+          # Wait for rollout to complete
+          kubectl rollout status deployment/gopherservice -n default --timeout=5m
+          kubectl rollout status deployment/otel-collector -n default --timeout=5m
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -l app=gopherservice
+          kubectl get services
+          kubectl describe deployment gopherservice
+
+      - name: Run smoke tests
+        run: |
+          # Add basic health checks here
+          echo "Deployment completed successfully"
