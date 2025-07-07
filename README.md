@@ -10,7 +10,7 @@ A production-ready Go microservice implementing a Pet Store API with modern obse
 *   **gRPC-Gateway** - Automatic REST API generation from gRPC definitions
 *   **Protocol Buffers** - Efficient serialization and API-first design
 *   **OpenTelemetry** - Distributed tracing and metrics with exponential histograms
-*   **Zap** - High-performance structured logging
+*   **Structured Logging** - High-performance structured logging using `log/slog`
 
 ### Production Features
 *   **Health Checks** - Standard gRPC health check protocol
@@ -251,7 +251,7 @@ grpcurl -plaintext -d '{
 ### Observability Stack
 - **Traces**: OpenTelemetry → OTLP Collector
 - **Metrics**: Exponential histograms for latency/duration
-- **Logs**: Structured JSON with Zap logger
+- **Logs**: Structured JSON with `log/slog`
 - **Health**: Standard gRPC health checks
 
 ### Key Design Patterns
@@ -432,7 +432,7 @@ This project exemplifies Go microservice best practices with:
 ### Observability Standards
 - **Distributed Tracing**: OpenTelemetry with OTLP export
 - **Metrics**: Exponential histograms for performance monitoring
-- **Structured Logging**: High-performance Zap logger with correlation
+- **Structured Logging**: High-performance `log/slog` with correlation
 - **Health Checks**: Standard gRPC health check protocol
 
 ### Development Experience
