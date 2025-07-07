@@ -213,6 +213,20 @@ message ListUsersResponse {
   int32 total_count = 3;
 }
 
+// DebugCreateUserAndTokenRequest is the request to create a user and get a token for debugging.
+message DebugCreateUserAndTokenRequest {
+  string email = 1;
+  string password = 2;
+  string full_name = 3;
+  repeated string roles = 4;
+}
+
+// DebugCreateUserAndTokenResponse is the response containing the token.
+message DebugCreateUserAndTokenResponse {
+  string token = 1;
+}
+
+
 // AuthService provides authentication and user management functionality.
 // This service handles user registration, login, token management, and user CRUD operations.
 service AuthService {
@@ -292,6 +306,14 @@ service AuthService {
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {
     option (google.api.http) = {
       get: "/v1/users"
+    };
+  }
+
+  // DebugCreateUserAndToken creates a user and returns a token for debugging.
+  rpc DebugCreateUserAndToken(DebugCreateUserAndTokenRequest) returns (DebugCreateUserAndTokenResponse) {
+    option (google.api.http) = {
+      post: "/v1/debug/create-user-and-token"
+      body: "*"
     };
   }
 }

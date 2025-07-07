@@ -1368,6 +1368,120 @@ func (x *ListUsersResponse) GetTotalCount() int32 {
 	return 0
 }
 
+// DebugCreateUserAndTokenRequest is the request to create a user and get a token for debugging.
+type DebugCreateUserAndTokenRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	FullName      string                 `protobuf:"bytes,3,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
+	Roles         []string               `protobuf:"bytes,4,rep,name=roles,proto3" json:"roles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DebugCreateUserAndTokenRequest) Reset() {
+	*x = DebugCreateUserAndTokenRequest{}
+	mi := &file_api_v1_auth_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DebugCreateUserAndTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DebugCreateUserAndTokenRequest) ProtoMessage() {}
+
+func (x *DebugCreateUserAndTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_auth_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DebugCreateUserAndTokenRequest.ProtoReflect.Descriptor instead.
+func (*DebugCreateUserAndTokenRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_auth_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *DebugCreateUserAndTokenRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *DebugCreateUserAndTokenRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+func (x *DebugCreateUserAndTokenRequest) GetFullName() string {
+	if x != nil {
+		return x.FullName
+	}
+	return ""
+}
+
+func (x *DebugCreateUserAndTokenRequest) GetRoles() []string {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+// DebugCreateUserAndTokenResponse is the response containing the token.
+type DebugCreateUserAndTokenResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DebugCreateUserAndTokenResponse) Reset() {
+	*x = DebugCreateUserAndTokenResponse{}
+	mi := &file_api_v1_auth_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DebugCreateUserAndTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DebugCreateUserAndTokenResponse) ProtoMessage() {}
+
+func (x *DebugCreateUserAndTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_auth_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DebugCreateUserAndTokenResponse.ProtoReflect.Descriptor instead.
+func (*DebugCreateUserAndTokenResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_auth_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *DebugCreateUserAndTokenResponse) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
 var File_api_v1_auth_proto protoreflect.FileDescriptor
 
 const file_api_v1_auth_proto_rawDesc = "" +
@@ -1466,7 +1580,14 @@ const file_api_v1_auth_proto_rawDesc = "" +
 	"\x05users\x18\x01 \x03(\v2\b.v1.UserR\x05users\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
 	"\vtotal_count\x18\x03 \x01(\x05R\n" +
-	"totalCount2\xbc\x06\n" +
+	"totalCount\"\x85\x01\n" +
+	"\x1eDebugCreateUserAndTokenRequest\x12\x14\n" +
+	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x1b\n" +
+	"\tfull_name\x18\x03 \x01(\tR\bfullName\x12\x14\n" +
+	"\x05roles\x18\x04 \x03(\tR\x05roles\"7\n" +
+	"\x1fDebugCreateUserAndTokenResponse\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token2\xcd\a\n" +
 	"\vAuthService\x12_\n" +
 	"\fRegisterUser\x12\x17.v1.RegisterUserRequest\x1a\x18.v1.RegisterUserResponse\"\x1c\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/register\x12G\n" +
 	"\x05Login\x12\x10.v1.LoginRequest\x1a\x11.v1.LoginResponse\"\x19\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v1/auth/login\x12K\n" +
@@ -1477,7 +1598,8 @@ const file_api_v1_auth_proto_rawDesc = "" +
 	"\n" +
 	"UpdateUser\x12\x15.v1.UpdateUserRequest\x1a\x16.v1.UpdateUserResponse\"\x1e\x82\xd3\xe4\x93\x02\x18:\x01*2\x13/v1/users/{user_id}\x12w\n" +
 	"\x0eChangePassword\x12\x19.v1.ChangePasswordRequest\x1a\x1a.v1.ChangePasswordResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/v1/users/{user_id}/change-password\x12K\n" +
-	"\tListUsers\x12\x14.v1.ListUsersRequest\x1a\x15.v1.ListUsersResponse\"\x11\x82\xd3\xe4\x93\x02\v\x12\t/v1/usersB*Z(github.com/plindsay/gopherservice/api/v1b\x06proto3"
+	"\tListUsers\x12\x14.v1.ListUsersRequest\x1a\x15.v1.ListUsersResponse\"\x11\x82\xd3\xe4\x93\x02\v\x12\t/v1/users\x12\x8e\x01\n" +
+	"\x17DebugCreateUserAndToken\x12\".v1.DebugCreateUserAndTokenRequest\x1a#.v1.DebugCreateUserAndTokenResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/v1/debug/create-user-and-tokenB*Z(github.com/plindsay/gopherservice/api/v1b\x06proto3"
 
 var (
 	file_api_v1_auth_proto_rawDescOnce sync.Once
@@ -1491,36 +1613,38 @@ func file_api_v1_auth_proto_rawDescGZIP() []byte {
 	return file_api_v1_auth_proto_rawDescData
 }
 
-var file_api_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_api_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_api_v1_auth_proto_goTypes = []any{
-	(*User)(nil),                   // 0: v1.User
-	(*UserCredentials)(nil),        // 1: v1.UserCredentials
-	(*JWTToken)(nil),               // 2: v1.JWTToken
-	(*TokenClaims)(nil),            // 3: v1.TokenClaims
-	(*RegisterUserRequest)(nil),    // 4: v1.RegisterUserRequest
-	(*RegisterUserResponse)(nil),   // 5: v1.RegisterUserResponse
-	(*LoginRequest)(nil),           // 6: v1.LoginRequest
-	(*LoginResponse)(nil),          // 7: v1.LoginResponse
-	(*LogoutRequest)(nil),          // 8: v1.LogoutRequest
-	(*LogoutResponse)(nil),         // 9: v1.LogoutResponse
-	(*RefreshTokenRequest)(nil),    // 10: v1.RefreshTokenRequest
-	(*RefreshTokenResponse)(nil),   // 11: v1.RefreshTokenResponse
-	(*ValidateTokenRequest)(nil),   // 12: v1.ValidateTokenRequest
-	(*ValidateTokenResponse)(nil),  // 13: v1.ValidateTokenResponse
-	(*GetUserRequest)(nil),         // 14: v1.GetUserRequest
-	(*GetUserResponse)(nil),        // 15: v1.GetUserResponse
-	(*UpdateUserRequest)(nil),      // 16: v1.UpdateUserRequest
-	(*UpdateUserResponse)(nil),     // 17: v1.UpdateUserResponse
-	(*ChangePasswordRequest)(nil),  // 18: v1.ChangePasswordRequest
-	(*ChangePasswordResponse)(nil), // 19: v1.ChangePasswordResponse
-	(*ListUsersRequest)(nil),       // 20: v1.ListUsersRequest
-	(*ListUsersResponse)(nil),      // 21: v1.ListUsersResponse
-	(*timestamppb.Timestamp)(nil),  // 22: google.protobuf.Timestamp
+	(*User)(nil),                            // 0: v1.User
+	(*UserCredentials)(nil),                 // 1: v1.UserCredentials
+	(*JWTToken)(nil),                        // 2: v1.JWTToken
+	(*TokenClaims)(nil),                     // 3: v1.TokenClaims
+	(*RegisterUserRequest)(nil),             // 4: v1.RegisterUserRequest
+	(*RegisterUserResponse)(nil),            // 5: v1.RegisterUserResponse
+	(*LoginRequest)(nil),                    // 6: v1.LoginRequest
+	(*LoginResponse)(nil),                   // 7: v1.LoginResponse
+	(*LogoutRequest)(nil),                   // 8: v1.LogoutRequest
+	(*LogoutResponse)(nil),                  // 9: v1.LogoutResponse
+	(*RefreshTokenRequest)(nil),             // 10: v1.RefreshTokenRequest
+	(*RefreshTokenResponse)(nil),            // 11: v1.RefreshTokenResponse
+	(*ValidateTokenRequest)(nil),            // 12: v1.ValidateTokenRequest
+	(*ValidateTokenResponse)(nil),           // 13: v1.ValidateTokenResponse
+	(*GetUserRequest)(nil),                  // 14: v1.GetUserRequest
+	(*GetUserResponse)(nil),                 // 15: v1.GetUserResponse
+	(*UpdateUserRequest)(nil),               // 16: v1.UpdateUserRequest
+	(*UpdateUserResponse)(nil),              // 17: v1.UpdateUserResponse
+	(*ChangePasswordRequest)(nil),           // 18: v1.ChangePasswordRequest
+	(*ChangePasswordResponse)(nil),          // 19: v1.ChangePasswordResponse
+	(*ListUsersRequest)(nil),                // 20: v1.ListUsersRequest
+	(*ListUsersResponse)(nil),               // 21: v1.ListUsersResponse
+	(*DebugCreateUserAndTokenRequest)(nil),  // 22: v1.DebugCreateUserAndTokenRequest
+	(*DebugCreateUserAndTokenResponse)(nil), // 23: v1.DebugCreateUserAndTokenResponse
+	(*timestamppb.Timestamp)(nil),           // 24: google.protobuf.Timestamp
 }
 var file_api_v1_auth_proto_depIdxs = []int32{
-	22, // 0: v1.User.created_at:type_name -> google.protobuf.Timestamp
-	22, // 1: v1.User.updated_at:type_name -> google.protobuf.Timestamp
-	22, // 2: v1.User.last_login_at:type_name -> google.protobuf.Timestamp
+	24, // 0: v1.User.created_at:type_name -> google.protobuf.Timestamp
+	24, // 1: v1.User.updated_at:type_name -> google.protobuf.Timestamp
+	24, // 2: v1.User.last_login_at:type_name -> google.protobuf.Timestamp
 	0,  // 3: v1.RegisterUserResponse.user:type_name -> v1.User
 	2,  // 4: v1.RegisterUserResponse.token:type_name -> v1.JWTToken
 	1,  // 5: v1.LoginRequest.credentials:type_name -> v1.UserCredentials
@@ -1541,17 +1665,19 @@ var file_api_v1_auth_proto_depIdxs = []int32{
 	16, // 20: v1.AuthService.UpdateUser:input_type -> v1.UpdateUserRequest
 	18, // 21: v1.AuthService.ChangePassword:input_type -> v1.ChangePasswordRequest
 	20, // 22: v1.AuthService.ListUsers:input_type -> v1.ListUsersRequest
-	5,  // 23: v1.AuthService.RegisterUser:output_type -> v1.RegisterUserResponse
-	7,  // 24: v1.AuthService.Login:output_type -> v1.LoginResponse
-	9,  // 25: v1.AuthService.Logout:output_type -> v1.LogoutResponse
-	11, // 26: v1.AuthService.RefreshToken:output_type -> v1.RefreshTokenResponse
-	13, // 27: v1.AuthService.ValidateToken:output_type -> v1.ValidateTokenResponse
-	15, // 28: v1.AuthService.GetUser:output_type -> v1.GetUserResponse
-	17, // 29: v1.AuthService.UpdateUser:output_type -> v1.UpdateUserResponse
-	19, // 30: v1.AuthService.ChangePassword:output_type -> v1.ChangePasswordResponse
-	21, // 31: v1.AuthService.ListUsers:output_type -> v1.ListUsersResponse
-	23, // [23:32] is the sub-list for method output_type
-	14, // [14:23] is the sub-list for method input_type
+	22, // 23: v1.AuthService.DebugCreateUserAndToken:input_type -> v1.DebugCreateUserAndTokenRequest
+	5,  // 24: v1.AuthService.RegisterUser:output_type -> v1.RegisterUserResponse
+	7,  // 25: v1.AuthService.Login:output_type -> v1.LoginResponse
+	9,  // 26: v1.AuthService.Logout:output_type -> v1.LogoutResponse
+	11, // 27: v1.AuthService.RefreshToken:output_type -> v1.RefreshTokenResponse
+	13, // 28: v1.AuthService.ValidateToken:output_type -> v1.ValidateTokenResponse
+	15, // 29: v1.AuthService.GetUser:output_type -> v1.GetUserResponse
+	17, // 30: v1.AuthService.UpdateUser:output_type -> v1.UpdateUserResponse
+	19, // 31: v1.AuthService.ChangePassword:output_type -> v1.ChangePasswordResponse
+	21, // 32: v1.AuthService.ListUsers:output_type -> v1.ListUsersResponse
+	23, // 33: v1.AuthService.DebugCreateUserAndToken:output_type -> v1.DebugCreateUserAndTokenResponse
+	24, // [24:34] is the sub-list for method output_type
+	14, // [14:24] is the sub-list for method input_type
 	14, // [14:14] is the sub-list for extension type_name
 	14, // [14:14] is the sub-list for extension extendee
 	0,  // [0:14] is the sub-list for field type_name
@@ -1569,7 +1695,7 @@ func file_api_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_auth_proto_rawDesc), len(file_api_v1_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

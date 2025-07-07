@@ -2,8 +2,11 @@ package auth
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"log/slog"
-	"sync"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -19,90 +22,39 @@ type Service struct {
 	v1.UnimplementedAuthServiceServer
 	logger     *slog.Logger
 	jwtManager *auth.JWTManager
-	users      map[string]*v1.User // In production, use a database
-	passwords  map[string]string   // In production, store in secure database
-	mu         sync.RWMutex        // Mutex to protect concurrent access
+	db         *sql.DB
 }
 
 // NewService creates a new authentication service instance.
-// It initializes in-memory storage for users and passwords.
-// In production, this should be replaced with proper database storage.
-func NewService(logger *slog.Logger, jwtManager *auth.JWTManager) *Service {
-	service := &Service{
+func NewService(logger *slog.Logger, jwtManager *auth.JWTManager, db *sql.DB) *Service {
+	return &Service{
 		logger:     logger,
 		jwtManager: jwtManager,
-		users:      make(map[string]*v1.User),
-		passwords:  make(map[string]string),
+		db:         db,
 	}
-
-	// Create a default admin user for testing
-	service.createDefaultUsers()
-
-	return service
-}
-
-// createDefaultUsers creates some default users for testing purposes.
-// In production, this should be removed and users should be created through proper channels.
-func (s *Service) createDefaultUsers() {
-	// Create admin user
-	adminID := uuid.New().String()
-	hashedPassword, _ := auth.HashPassword("admin123")
-
-	s.users[adminID] = &v1.User{
-		Id:          adminID,
-		Email:       "admin@example.com",
-		FullName:    "System Administrator",
-		Roles:       []string{"admin", "user"},
-		IsActive:    true,
-		CreatedAt:   timestamppb.Now(),
-		UpdatedAt:   timestamppb.Now(),
-		LastLoginAt: nil,
-	}
-	s.passwords[adminID] = hashedPassword
-
-	// Create regular user
-	userID := uuid.New().String()
-	hashedPassword, _ = auth.HashPassword("user123")
-
-	s.users[userID] = &v1.User{
-		Id:          userID,
-		Email:       "user@example.com",
-		FullName:    "Regular User",
-		Roles:       []string{"user"},
-		IsActive:    true,
-		CreatedAt:   timestamppb.Now(),
-		UpdatedAt:   timestamppb.Now(),
-		LastLoginAt: nil,
-	}
-	s.passwords[userID] = hashedPassword
-
-	s.logger.Info("created default users",
-		slog.String("admin_email", "admin@example.com"),
-		slog.String("user_email", "user@example.com"),
-	)
 }
 
 // RegisterUser creates a new user account.
-func (s *Service) RegisterUser(_ context.Context, req *v1.RegisterUserRequest) (*v1.RegisterUserResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+func (s *Service) RegisterUser(ctx context.Context, req *v1.RegisterUserRequest) (*v1.RegisterUserResponse, error) {
 	// Validate input
 	if req.Email == "" {
-		return nil, errors.NewValidationError("email is required", "Email field cannot be empty").ToGRPCStatus()
+		return nil, errors.NewValidationError("email is required").ToGRPCStatus()
 	}
 	if req.Password == "" {
-		return nil, errors.NewValidationError("password is required", "Password field cannot be empty").ToGRPCStatus()
+		return nil, errors.NewValidationError("password is required").ToGRPCStatus()
 	}
 	if req.FullName == "" {
-		return nil, errors.NewValidationError("full name is required", "FullName field cannot be empty").ToGRPCStatus()
+		return nil, errors.NewValidationError("full name is required").ToGRPCStatus()
 	}
 
 	// Check if user already exists
-	for _, user := range s.users {
-		if user.Email == req.Email {
-			return nil, errors.NewConflictError("user", req.Email, "User with this email already exists").ToGRPCStatus()
-		}
+	var existingID string
+	err := s.db.QueryRowContext(ctx, "SELECT id FROM users WHERE email = ?", req.Email).Scan(&existingID)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, errors.NewInternalError("failed to check for existing user", err).ToGRPCStatus()
+	}
+	if existingID != "" {
+		return nil, errors.NewConflictError("user", req.Email, "a user with this email already exists").ToGRPCStatus()
 	}
 
 	// Hash password
@@ -117,6 +69,7 @@ func (s *Service) RegisterUser(_ context.Context, req *v1.RegisterUserRequest) (
 	if len(roles) == 0 {
 		roles = []string{"user"} // Default role
 	}
+	rolesJSON, _ := json.Marshal(roles)
 
 	user := &v1.User{
 		Id:        userID,
@@ -128,25 +81,38 @@ func (s *Service) RegisterUser(_ context.Context, req *v1.RegisterUserRequest) (
 		UpdatedAt: timestamppb.Now(),
 	}
 
-	s.users[userID] = user
-	s.passwords[userID] = hashedPassword
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, errors.NewInternalError("failed to begin transaction", err).ToGRPCStatus()
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			s.logger.Error("failed to rollback transaction", "error", err)
+		}
+	}()
 
-	s.logger.Info("user registered",
-		slog.String("user_id", userID),
-		slog.String("email", req.Email),
-		slog.Any("roles", roles),
-	)
+	_, err = tx.ExecContext(ctx, "INSERT INTO users (id, email, full_name, roles, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		user.Id, user.Email, user.FullName, string(rolesJSON), user.IsActive, user.CreatedAt.AsTime(), user.UpdatedAt.AsTime())
+	if err != nil {
+		return nil, errors.NewInternalError("failed to create user", err).ToGRPCStatus()
+	}
 
-	return &v1.RegisterUserResponse{
-		User: user,
-	}, nil
+	_, err = tx.ExecContext(ctx, "INSERT INTO passwords (user_id, hash) VALUES (?, ?)", user.Id, hashedPassword)
+	if err != nil {
+		return nil, errors.NewInternalError("failed to save password", err).ToGRPCStatus()
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, errors.NewInternalError("failed to commit transaction", err).ToGRPCStatus()
+	}
+
+	s.logger.Info("user registered", "user_id", userID, "email", req.Email)
+
+	return &v1.RegisterUserResponse{User: user}, nil
 }
 
 // Login authenticates a user and returns a JWT token.
-func (s *Service) Login(_ context.Context, req *v1.LoginRequest) (*v1.LoginResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+func (s *Service) Login(ctx context.Context, req *v1.LoginRequest) (*v1.LoginResponse, error) {
 	if req.Credentials == nil {
 		return nil, errors.NewValidationError("credentials are required").ToGRPCStatus()
 	}
@@ -155,273 +121,318 @@ func (s *Service) Login(_ context.Context, req *v1.LoginRequest) (*v1.LoginRespo
 	password := req.Credentials.Password
 
 	if email == "" || password == "" {
-		return nil, errors.NewValidationError("email and password are required", "Both email and password fields must be provided").ToGRPCStatus()
+		return nil, errors.NewValidationError("email and password are required").ToGRPCStatus()
 	}
 
-	// Find user by email
-	var user *v1.User
-	var userID string
+	var user v1.User
+	var rolesJSON string
 	var hashedPassword string
+	var lastLogin sql.NullTime
+	createdAt := time.Time{}
+	updatedAt := time.Time{}
 
-	for id, u := range s.users {
-		if u.Email == email {
-			user = u
-			userID = id
-			hashedPassword = s.passwords[id]
-			break
-		}
+	err := s.db.QueryRowContext(ctx, "SELECT id, full_name, roles, is_active, created_at, updated_at, last_login_at FROM users WHERE email = ?", email).Scan(
+		&user.Id, &user.FullName, &rolesJSON, &user.IsActive, &createdAt, &updatedAt, &lastLogin,
+	)
+	if err == sql.ErrNoRows {
+		return nil, errors.NewAuthenticationError("invalid credentials").ToGRPCStatus()
 	}
-
-	if user == nil {
-		return nil, errors.NewAuthenticationError("invalid credentials", "User not found or password incorrect").ToGRPCStatus()
+	if err != nil {
+		return nil, errors.NewInternalError("failed to find user", err).ToGRPCStatus()
+	}
+	user.Email = email
+	user.CreatedAt = timestamppb.New(createdAt)
+	user.UpdatedAt = timestamppb.New(updatedAt)
+	if lastLogin.Valid {
+		user.LastLoginAt = timestamppb.New(lastLogin.Time)
 	}
 
 	if !user.IsActive {
-		return nil, errors.NewAuthorizationError("login", "User account is disabled").ToGRPCStatus()
+		return nil, errors.NewAuthorizationError("login", "user account is disabled").ToGRPCStatus()
 	}
 
-	// Verify password
-	if !auth.VerifyPassword(hashedPassword, password) {
-		return nil, errors.NewAuthenticationError("invalid credentials", "Password verification failed").ToGRPCStatus()
-	}
-
-	// Generate JWT token
-	token, err := s.jwtManager.GenerateToken(userID, user.Email, user.Roles)
+	err = s.db.QueryRowContext(ctx, "SELECT hash FROM passwords WHERE user_id = ?", user.Id).Scan(&hashedPassword)
 	if err != nil {
-		s.logger.Error("failed to generate token", slog.Any("error", err))
+		return nil, errors.NewInternalError("failed to retrieve password", err).ToGRPCStatus()
+	}
+
+	if !auth.VerifyPassword(hashedPassword, password) {
+		return nil, errors.NewAuthenticationError("invalid credentials").ToGRPCStatus()
+	}
+
+	if err := json.Unmarshal([]byte(rolesJSON), &user.Roles); err != nil {
+		return nil, errors.NewInternalError("failed to parse user roles", err).ToGRPCStatus()
+	}
+
+	token, err := s.jwtManager.GenerateToken(user.Id, user.Email, user.Roles)
+	if err != nil {
 		return nil, errors.NewInternalError("failed to generate token", err).ToGRPCStatus()
 	}
 
-	// Update last login time
-	user.LastLoginAt = timestamppb.Now()
-	user.UpdatedAt = timestamppb.Now()
+	now := time.Now()
+	user.LastLoginAt = timestamppb.New(now)
+	user.UpdatedAt = timestamppb.New(now)
 
-	s.logger.Info("user logged in",
-		slog.String("user_id", userID),
-		slog.String("email", email),
-	)
+	_, err = s.db.ExecContext(ctx, "UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?", now, now, user.Id)
+	if err != nil {
+		s.logger.Error("failed to update last login time", "error", err)
+		// Non-critical error, so we don't return an error to the user
+	}
 
-	return &v1.LoginResponse{
-		User:  user,
-		Token: token,
-	}, nil
+	s.logger.Info("user logged in", "user_id", user.Id, "email", user.Email)
+
+	return &v1.LoginResponse{User: &user, Token: token}, nil
 }
 
 // Logout invalidates a user's token.
 func (s *Service) Logout(_ context.Context, req *v1.LogoutRequest) (*v1.LogoutResponse, error) {
 	if req.Token == "" {
-		return nil, errors.NewValidationError("token is required", "Token field cannot be empty").ToGRPCStatus()
+		return nil, errors.NewValidationError("token is required").ToGRPCStatus()
 	}
 
-	// Revoke the token
 	s.jwtManager.RevokeToken(req.Token)
-
 	s.logger.Info("user logged out")
 
-	return &v1.LogoutResponse{
-		Message: "Successfully logged out",
-	}, nil
+	return &v1.LogoutResponse{Message: "Successfully logged out"}, nil
 }
 
-// RefreshToken obtains a new access token using a refresh token.
+// RefreshToken is not fully implemented.
 func (s *Service) RefreshToken(_ context.Context, req *v1.RefreshTokenRequest) (*v1.RefreshTokenResponse, error) {
 	if req.RefreshToken == "" {
-		return nil, errors.NewValidationError("refresh token is required", "RefreshToken field cannot be empty").ToGRPCStatus()
+		return nil, errors.NewValidationError("refresh token is required").ToGRPCStatus()
 	}
-
-	// In a real implementation, you would validate the refresh token against a database
-	// For this example, we'll return an error since we don't have a full refresh token implementation
-	return nil, errors.NewInternalError("refresh token functionality not fully implemented", nil).ToGRPCStatus()
+	return nil, errors.NewInternalError("refresh token functionality not implemented", nil).ToGRPCStatus()
 }
 
-// ValidateToken validates a JWT token and returns its claims.
+// ValidateToken validates a JWT token.
 func (s *Service) ValidateToken(_ context.Context, req *v1.ValidateTokenRequest) (*v1.ValidateTokenResponse, error) {
 	if req.Token == "" {
-		return nil, errors.NewValidationError("token is required", "Token field cannot be empty").ToGRPCStatus()
+		return nil, errors.NewValidationError("token is required").ToGRPCStatus()
 	}
 
 	claims, err := s.jwtManager.ValidateToken(req.Token)
 	if err != nil {
-		return &v1.ValidateTokenResponse{
-			IsValid:      false,
-			ErrorMessage: err.Error(),
-		}, nil
+		return &v1.ValidateTokenResponse{IsValid: false, ErrorMessage: err.Error()}, nil
 	}
 
-	return &v1.ValidateTokenResponse{
-		IsValid: true,
-		Claims:  claims,
-	}, nil
+	return &v1.ValidateTokenResponse{IsValid: true, Claims: claims}, nil
 }
 
-// GetUser retrieves user information by ID.
-func (s *Service) GetUser(_ context.Context, req *v1.GetUserRequest) (*v1.GetUserResponse, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
+// GetUser retrieves a user by their ID.
+func (s *Service) GetUser(ctx context.Context, req *v1.GetUserRequest) (*v1.GetUserResponse, error) {
 	if req.UserId == "" {
-		return nil, errors.NewValidationError("user ID is required", "UserId field cannot be empty").ToGRPCStatus()
+		return nil, errors.NewValidationError("user ID is required").ToGRPCStatus()
 	}
 
-	user, exists := s.users[req.UserId]
-	if !exists {
+	var user v1.User
+	var rolesJSON string
+	var lastLogin sql.NullTime
+	createdAt := time.Time{}
+	updatedAt := time.Time{}
+
+	err := s.db.QueryRowContext(ctx, "SELECT email, full_name, roles, is_active, created_at, updated_at, last_login_at FROM users WHERE id = ?", req.UserId).Scan(
+		&user.Email, &user.FullName, &rolesJSON, &user.IsActive, &createdAt, &updatedAt, &lastLogin,
+	)
+	if err == sql.ErrNoRows {
 		return nil, errors.NewNotFoundError("user", req.UserId).ToGRPCStatus()
 	}
-
-	return &v1.GetUserResponse{
-		User: user,
-	}, nil
-}
-
-// UpdateUser updates user information.
-func (s *Service) UpdateUser(_ context.Context, req *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if req.UserId == "" {
-		return nil, errors.NewValidationError("user ID is required", "UserId field cannot be empty").ToGRPCStatus()
+	if err != nil {
+		return nil, errors.NewInternalError("failed to get user", err).ToGRPCStatus()
+	}
+	user.Id = req.UserId
+	user.CreatedAt = timestamppb.New(createdAt)
+	user.UpdatedAt = timestamppb.New(updatedAt)
+	if lastLogin.Valid {
+		user.LastLoginAt = timestamppb.New(lastLogin.Time)
 	}
 
+	if err := json.Unmarshal([]byte(rolesJSON), &user.Roles); err != nil {
+		return nil, errors.NewInternalError("failed to parse user roles", err).ToGRPCStatus()
+	}
+
+	return &v1.GetUserResponse{User: &user}, nil
+}
+
+// UpdateUser updates a user's information.
+func (s *Service) UpdateUser(ctx context.Context, req *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.NewValidationError("user ID is required").ToGRPCStatus()
+	}
 	if req.User == nil {
-		return nil, errors.NewValidationError("user data is required", "User field cannot be empty").ToGRPCStatus()
+		return nil, errors.NewValidationError("user data is required").ToGRPCStatus()
 	}
 
-	existingUser, exists := s.users[req.UserId]
-	if !exists {
-		return nil, errors.NewNotFoundError("user", req.UserId).ToGRPCStatus()
-	}
+	// For simplicity, we only support updating a few fields.
+	// A full implementation would use a field mask.
+	query := "UPDATE users SET updated_at = ?"
+	args := []interface{}{time.Now()}
 
-	// Update fields based on update mask
-	// For simplicity, we'll update all provided fields
 	if req.User.FullName != "" {
-		existingUser.FullName = req.User.FullName
+		query += ", full_name = ?"
+		args = append(args, req.User.FullName)
 	}
 	if req.User.Email != "" {
-		existingUser.Email = req.User.Email
-	}
-	if len(req.User.Roles) > 0 {
-		existingUser.Roles = req.User.Roles
-	}
-	if req.User.IsActive != existingUser.IsActive {
-		existingUser.IsActive = req.User.IsActive
+		query += ", email = ?"
+		args = append(args, req.User.Email)
 	}
 
-	existingUser.UpdatedAt = timestamppb.Now()
+	query += " WHERE id = ?"
+	args = append(args, req.UserId)
 
-	s.logger.Info("user updated",
-		slog.String("user_id", req.UserId),
-		slog.String("email", existingUser.Email),
-	)
+	_, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return nil, errors.NewInternalError("failed to update user", err).ToGRPCStatus()
+	}
 
-	return &v1.UpdateUserResponse{
-		User: existingUser,
-	}, nil
+	// Fetch the updated user to return
+	getUserResponse, err := s.GetUser(ctx, &v1.GetUserRequest{UserId: req.UserId})
+	if err != nil {
+		return nil, err
+	}
+	return &v1.UpdateUserResponse{User: getUserResponse.User}, nil
 }
 
 // ChangePassword changes a user's password.
-func (s *Service) ChangePassword(_ context.Context, req *v1.ChangePasswordRequest) (*v1.ChangePasswordResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+func (s *Service) ChangePassword(ctx context.Context, req *v1.ChangePasswordRequest) (*v1.ChangePasswordResponse, error) {
 	if req.UserId == "" {
-		return nil, errors.NewValidationError("user ID is required", "UserId field cannot be empty").ToGRPCStatus()
+		return nil, errors.NewValidationError("user ID is required").ToGRPCStatus()
 	}
 	if req.CurrentPassword == "" || req.NewPassword == "" {
-		return nil, errors.NewValidationError("current password and new password are required", "Both CurrentPassword and NewPassword fields must be provided").ToGRPCStatus()
+		return nil, errors.NewValidationError("current and new passwords are required").ToGRPCStatus()
 	}
 
-	user, exists := s.users[req.UserId]
-	if !exists {
-		return nil, errors.NewNotFoundError("user", req.UserId).ToGRPCStatus()
+	var currentHash string
+	err := s.db.QueryRowContext(ctx, "SELECT hash FROM passwords WHERE user_id = ?", req.UserId).Scan(&currentHash)
+	if err != nil {
+		return nil, errors.NewInternalError("failed to retrieve current password", err).ToGRPCStatus()
 	}
 
-	// Verify current password
-	currentHash := s.passwords[req.UserId]
 	if !auth.VerifyPassword(currentHash, req.CurrentPassword) {
-		return nil, errors.NewAuthenticationError("current password is incorrect", "Current password verification failed").ToGRPCStatus()
+		return nil, errors.NewAuthenticationError("current password is incorrect").ToGRPCStatus()
 	}
 
-	// Hash new password
 	newHash, err := auth.HashPassword(req.NewPassword)
 	if err != nil {
 		return nil, errors.NewInternalError("failed to hash new password", err).ToGRPCStatus()
 	}
 
-	// Update password
-	s.passwords[req.UserId] = newHash
-	user.UpdatedAt = timestamppb.Now()
+	_, err = s.db.ExecContext(ctx, "UPDATE passwords SET hash = ? WHERE user_id = ?", newHash, req.UserId)
+	if err != nil {
+		return nil, errors.NewInternalError("failed to update password", err).ToGRPCStatus()
+	}
 
-	s.logger.Info("password changed",
-		slog.String("user_id", req.UserId),
-		slog.String("email", user.Email),
-	)
-
-	return &v1.ChangePasswordResponse{
-		Message: "Password changed successfully",
-	}, nil
+	s.logger.Info("password changed", "user_id", req.UserId)
+	return &v1.ChangePasswordResponse{Message: "Password changed successfully"}, nil
 }
 
 // ListUsers lists users with pagination and filtering.
-func (s *Service) ListUsers(_ context.Context, req *v1.ListUsersRequest) (*v1.ListUsersResponse, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+func (s *Service) ListUsers(ctx context.Context, req *v1.ListUsersRequest) (*v1.ListUsersResponse, error) {
+	query := "SELECT id, email, full_name, roles, is_active, created_at, updated_at, last_login_at FROM users"
+	countQuery := "SELECT COUNT(*) FROM users"
+	var args []interface{}
+	var conditions []string
 
-	var users []*v1.User
-	totalCount := 0
-
-	// Apply filters and collect users
-	for _, user := range s.users {
-		// Filter by active status if specified
-		if req.IsActive != nil && user.IsActive != *req.IsActive {
-			continue
-		}
-
-		// Filter by role if specified
-		if req.RoleFilter != "" {
-			hasRole := false
-			for _, role := range user.Roles {
-				if role == req.RoleFilter {
-					hasRole = true
-					break
-				}
-			}
-			if !hasRole {
-				continue
-			}
-		}
-
-		users = append(users, user)
-		totalCount++
+	if req.IsActive != nil {
+		conditions = append(conditions, "is_active = ?")
+		args = append(args, *req.IsActive)
+	}
+	if req.RoleFilter != "" {
+		conditions = append(conditions, "roles LIKE ?")
+		args = append(args, "%"+req.RoleFilter+"%")
 	}
 
-	// Apply pagination (simplified implementation)
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+		countQuery += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	var totalCount int32
+	err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalCount)
+	if err != nil {
+		return nil, errors.NewInternalError("failed to count users", err).ToGRPCStatus()
+	}
+
 	pageSize := req.PageSize
 	if pageSize <= 0 {
-		pageSize = 10 // Default page size
+		pageSize = 10
 	}
+	query += " LIMIT ?"
+	args = append(args, pageSize)
 
-	// For simplicity, we're not implementing full pagination with tokens
-	// In production, you would implement proper cursor-based pagination
+	// Note: Full pagination with tokens is not implemented for simplicity.
 
-	if int(pageSize) < len(users) {
-		users = users[:pageSize]
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errors.NewInternalError("failed to list users", err).ToGRPCStatus()
+	}
+	defer rows.Close()
+
+	var users []*v1.User
+	for rows.Next() {
+		var user v1.User
+		var rolesJSON string
+		var lastLogin sql.NullTime
+		createdAt := time.Time{}
+		updatedAt := time.Time{}
+
+		if err := rows.Scan(&user.Id, &user.Email, &user.FullName, &rolesJSON, &user.IsActive, &createdAt, &updatedAt, &lastLogin); err != nil {
+			return nil, errors.NewInternalError("failed to scan user row", err).ToGRPCStatus()
+		}
+		user.CreatedAt = timestamppb.New(createdAt)
+		user.UpdatedAt = timestamppb.New(updatedAt)
+		if lastLogin.Valid {
+			user.LastLoginAt = timestamppb.New(lastLogin.Time)
+		}
+		if err := json.Unmarshal([]byte(rolesJSON), &user.Roles); err != nil {
+			return nil, errors.NewInternalError("failed to parse user roles", err).ToGRPCStatus()
+		}
+		users = append(users, &user)
 	}
 
 	return &v1.ListUsersResponse{
 		Users:      users,
-		TotalCount: int32(totalCount),
+		TotalCount: totalCount,
 	}, nil
 }
 
-// GetUserByEmail is a helper method to find a user by email (not part of the gRPC interface).
-func (s *Service) GetUserByEmail(email string) (*v1.User, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	for _, user := range s.users {
-		if user.Email == email {
-			return user, true
-		}
+func (s *Service) DebugCreateUserAndToken(ctx context.Context, req *v1.DebugCreateUserAndTokenRequest) (*v1.DebugCreateUserAndTokenResponse, error) {
+	// Create user
+	registerReq := &v1.RegisterUserRequest{
+		Email:    req.Email,
+		Password: req.Password,
+		FullName: req.FullName,
+		Roles:    req.Roles,
 	}
-	return nil, false
+	_, err := s.RegisterUser(ctx, registerReq)
+	if err != nil {
+		// If the user already exists, just log in
+		if strings.Contains(err.Error(), "already exists") {
+			loginReq := &v1.LoginRequest{
+				Credentials: &v1.UserCredentials{
+					Email:    req.Email,
+					Password: req.Password,
+				},
+			}
+			loginResp, err := s.Login(ctx, loginReq)
+			if err != nil {
+				return nil, err
+			}
+			return &v1.DebugCreateUserAndTokenResponse{Token: loginResp.Token.AccessToken}, nil
+		}
+		return nil, err
+	}
+
+	// Log in to get token
+	loginReq := &v1.LoginRequest{
+		Credentials: &v1.UserCredentials{
+			Email:    req.Email,
+			Password: req.Password,
+		},
+	}
+	loginResp, err := s.Login(ctx, loginReq)
+	if err != nil {
+		return nil, err
+	}
+
+	return &v1.DebugCreateUserAndTokenResponse{Token: loginResp.Token.AccessToken}, nil
 }

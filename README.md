@@ -136,37 +136,27 @@ make build-all
 
 ## API Usage Examples
 
-### Automated Example Execution
-Build and run both gRPC and HTTP examples:
-```bash
-make run-examples
-```
+### Running Examples
 
-This command will:
-1. Start the gopherservice in the background
-2. Build and run the gRPC client example
-3. Build and run the HTTP client example
-4. Clean up the background service
+To run the gRPC and HTTP examples, you need to start the `gopherservice` server manually in a separate terminal, and then run the client examples.
 
-### Manual Example Usage
+1.  **Start the `gopherservice` server in a separate terminal:**
+    ```bash
+    DATABASE_DSN="/tmp/gopherservice.db" OTEL_EXPORTER_OTLP_ENDPOINT="" ./gopherservice
+    ```
+    (Keep this terminal open while running the client examples.)
 
-#### gRPC Client Example
-```bash
-# Terminal 1: Start the service
-make run
+2.  **In a new terminal, run the gRPC client example:**
+    ```bash
+    go run ./examples/grpc
+    ```
 
-# Terminal 2: Run gRPC client
-go run ./examples/grpc
-```
+3.  **In another new terminal, run the HTTP client example:**
+    ```bash
+    go run ./examples/http
+    ```
 
-#### HTTP/REST Client Example
-```bash
-# Terminal 1: Start the service
-make run
-
-# Terminal 2: Run HTTP client
-go run ./examples/http
-```
+4.  **To stop the `gopherservice` server, press `Ctrl+C` in the terminal where it's running.**
 
 ### API Endpoints
 
@@ -372,6 +362,42 @@ This includes:
 - Gopherservice (gRPC + HTTP)
 - OpenTelemetry Collector
 - Example telemetry configuration
+
+### Kubernetes
+Kubernetes configurations are provided in the `kubernetes/` directory.
+
+**Generated Files:**
+- `kubernetes/otel-collector-configmap.yaml`: ConfigMap for OpenTelemetry collector configuration.
+- `kubernetes/otel-collector-deployment-service.yaml`: Deployment and Service for the OpenTelemetry collector.
+- `kubernetes/gopherservice-deployment-service.yaml`: Deployment and Service for the `gopherservice` application.
+
+**Deployment Steps:**
+1.  **Ensure your Docker image `gopherservice:latest` is available in your Kubernetes cluster's image registry.** If you're using a local Kubernetes (like Minikube or Kind), you might need to load the image into its daemon:
+    ```bash
+    docker build -t gopherservice .
+    # If using Minikube:
+    minikube image load gopherservice:latest
+    # If using Kind:
+    kind load docker-image gopherservice:latest
+    ```
+2.  **Apply the configurations:**
+    ```bash
+    kubectl apply -f kubernetes/otel-collector-configmap.yaml
+    kubectl apply -f kubernetes/otel-collector-deployment-service.yaml
+    kubectl apply -f kubernetes/gopherservice-deployment-service.yaml
+    ```
+3.  **Check the status of your deployments:**
+    ```bash
+    kubectl get pods
+    kubectl get services
+    ```
+
+**Further Considerations for Kubernetes:**
+-   **Ingress**: For external access to your HTTP/REST API.
+-   **Secrets**: For sensitive information like `JWT_SECRET_KEY` instead of hardcoding them or passing them as environment variables directly in the Deployment YAML.
+-   **Resource Limits/Requests**: To define CPU and memory limits for your pods.
+-   **Horizontal Pod Autoscaler (HPA)**: For automatic scaling based on metrics.
+-   **Persistent Volume Claims (PVCs)**: If your `gopherservice` needs persistent storage (currently it uses a file-based SQLite in `/tmp`, which is ephemeral in a container).
 
 ### Configuration
 Service configuration via `config.yaml`:

@@ -13,11 +13,23 @@ gopherservice
 # -o option
 *.out
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+vendor/
 
 # Go workspace file
 go.work
 
+# Backup files
+go.mod.bak
+go.sum.bak
+
+# Process ID file
+gopherservice.pid
+
 # Third party dependencies
 third_party/
+
+# Diagram files
+gopherservice.drawio
+
+# Local settings
+.claude/

@@ -65,12 +65,8 @@ build-all: deps generate build test lint
 run-examples:
 	@echo "Building gopherservice..."
 	go build -o gopherservice ./cmd/server
-	@echo "Killing any existing gopherservice instances..."
-	-killall gopherservice
-	@echo "Starting gopherservice in background..."
-	./gopherservice &
-	@echo "Waiting for server to start..."
-	sleep 2
+	@echo "Starting gopherservice..."
+	DATABASE_DSN="sqlite:///tmp/gopherservice_run_example.db" OTEL_EXPORTER_OTLP_ENDPOINT="" ./gopherservice &
 	@echo "Building and running gRPC example..."
 	go build -o examples/grpc/grpc-client ./examples/grpc
 	./examples/grpc/grpc-client

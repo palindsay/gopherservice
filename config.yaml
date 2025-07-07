@@ -1,3 +1,12 @@
+server:
+  port: 8080
+  gracefulShutdownTimeout: 5
+jwt:
+  secretKey: "${JWT_SECRET_KEY}"
+  tokenDuration: 15 # in minutes
+  refreshDuration: 10080 # in minutes (7 days)
+database:
+  dsn: "${DATABASE_DSN:-sqlite://gopherservice.db}"
 telemetry:
   serviceName: "gopherservice"
-  endpoint: "otel-collector:4317"
+  endpoint: "${OTEL_EXPORTER_OTLP_ENDPOINT:-otel-collector:4317}"

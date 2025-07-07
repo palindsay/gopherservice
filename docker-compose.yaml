@@ -10,9 +10,10 @@ services:
       - GRPC_PORT=8080
       - HTTP_PORT=8081
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - DATABASE_DSN=sqlite://gopherservice.db
 
   otel-collector:
-    image: otel/opentelemetry-collector:0.84.0
+    image: otel/opentelemetry-collector:0.99.0
     command: [--config=/etc/otel-collector-config.yaml]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml

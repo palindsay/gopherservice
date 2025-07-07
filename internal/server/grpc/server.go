@@ -38,6 +38,7 @@ func New(_ context.Context, logger *slog.Logger, port int, petStoreService *pets
 	authInterceptor.AddPublicMethod("/v1.AuthService/RegisterUser")
 	authInterceptor.AddPublicMethod("/v1.AuthService/Login")
 	authInterceptor.AddPublicMethod("/v1.AuthService/ValidateToken")
+	authInterceptor.AddPublicMethod("/v1.AuthService/DebugCreateUserAndToken")
 	authInterceptor.AddPublicMethod("/grpc.health.v1.Health/Check")
 
 	// Configure role-based access control

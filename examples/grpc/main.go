@@ -20,20 +20,57 @@ func main() {
 	}
 	defer conn.Close()
 
+	// Create a new Auth client
+	authClient := v1.NewAuthServiceClient(conn)
+
+	// Get a token
+	token, err := getToken(authClient)
+	if err != nil {
+		log.Fatalf("could not get token: %v", err)
+	}
+
 	// Create a new PetStore client using the established gRPC connection.
 	client := v1.NewPetStoreServiceClient(conn)
 
 	// Call the createPet function to add a new pet to the store.
-	createPet(client)
+	createPet(client, token)
 
 	// Call the getPet function to retrieve the pet that was just created.
-	getPet(client)
+	getPet(client, token)
+}
+
+func getToken(client v1.AuthServiceClient) (string, error) {
+	log.Println("--- Registering User ---")
+	registerReq := &v1.RegisterUserRequest{
+		Email:    "test@example.com",
+		Password: "password",
+		FullName: "Test User",
+		Roles:    []string{"user"},
+	}
+	_, err := client.RegisterUser(context.Background(), registerReq)
+	if err != nil {
+		log.Printf("could not register user (might already exist): %v", err)
+	}
+
+	log.Println("--- Logging In ---")
+	loginReq := &v1.LoginRequest{
+		Credentials: &v1.UserCredentials{
+			Email:    "test@example.com",
+			Password: "password",
+		},
+	}
+	loginRes, err := client.Login(context.Background(), loginReq)
+	if err != nil {
+		return "", err
+	}
+	log.Println("Logged in successfully, got token.")
+	return loginRes.Token.AccessToken, nil
 }
 
 // createPet demonstrates how to create a new pet using the PetStoreServiceClient.
 // It takes a PetStoreServiceClient as input and attempts to create a pet with ID "1", Name "Fido", and Species "dog".
 // It logs the created pet or a fatal error if the creation fails.
-func createPet(client v1.PetStoreServiceClient) {
+func createPet(client v1.PetStoreServiceClient, token string) {
 	log.Println("--- CreatePet ---")
 	pet := &v1.Pet{
 		Id:      "1",
@@ -41,7 +78,8 @@ func createPet(client v1.PetStoreServiceClient) {
 		Species: "dog",
 	}
 	req := &v1.CreatePetRequest{Pet: pet}
-	res, err := client.CreatePet(context.Background(), req)
+	ctx := context.WithValue(context.Background(), "authorization", "Bearer "+token)
+	res, err := client.CreatePet(ctx, req)
 	if err != nil {
 		log.Fatalf("could not create pet: %v", err)
 	}
@@ -51,10 +89,11 @@ func createPet(client v1.PetStoreServiceClient) {
 // getPet demonstrates how to retrieve a pet by its ID using the PetStoreServiceClient.
 // It takes a PetStoreServiceClient as input and attempts to retrieve the pet with ID "1".
 // It logs the retrieved pet or a fatal error if the retrieval fails.
-func getPet(client v1.PetStoreServiceClient) {
+func getPet(client v1.PetStoreServiceClient, token string) {
 	log.Println("--- GetPet ---")
 	req := &v1.GetPetRequest{Id: "1"}
-	res, err := client.GetPet(context.Background(), req)
+	ctx := context.WithValue(context.Background(), "authorization", "Bearer "+token)
+	res, err := client.GetPet(ctx, req)
 	if err != nil {
 		log.Fatalf("could not get pet: %v", err)
 	}
