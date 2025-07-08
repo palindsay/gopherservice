@@ -13,6 +13,17 @@ gopherservice
 # -o option
 *.out
 
+# Binary files without extensions
+*
+!*/
+!*.*
+
+# Example binaries
+examples/grpc/grpc-client
+examples/http/http-client
+examples/*/*-client
+examples/*/*-server
+
 vendor/
 
 # Go workspace file
