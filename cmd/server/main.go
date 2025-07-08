@@ -36,7 +36,7 @@ import (
 	"github.com/plindsay/gopherservice/internal/log"
 	"github.com/plindsay/gopherservice/internal/petstore"
 	grpcserver "github.com/plindsay/gopherservice/internal/server/grpc"
-	"github.com/plindsay/gopherservice/pkg/auth"
+	// "github.com/plindsay/gopherservice/pkg/auth" // Removed
 
 	v1 "github.com/plindsay/gopherservice/api/v1"
 )
@@ -91,17 +91,15 @@ func run(ctx context.Context, logger *slog.Logger, cfg *config.Config) error {
 	}
 	defer db.Close()
 
-	// Initialize JWT manager
-	jwtManager := auth.NewJWTManager(
-		cfg.JWT.SecretKey,
-		time.Duration(cfg.JWT.TokenDuration)*time.Minute,
-		time.Duration(cfg.JWT.RefreshDuration)*time.Minute,
-		cfg.Telemetry.ServiceName,
-		logger,
-	)
+	// JWT Configuration from application config
+	jwtSecretKey := cfg.JWT.SecretKey
+	accessTokenDuration := time.Duration(cfg.JWT.TokenDuration) * time.Minute
+	refreshTokenDuration := time.Duration(cfg.JWT.RefreshDuration) * time.Minute
+	jwtIssuer := cfg.Telemetry.ServiceName // Using service name as issuer as before
 
 	// Create service instances
-	authService := authsvc.NewService(logger, jwtManager, db)
+	// authsvc.NewService now takes JWT config directly instead of a jwtManager
+	authService := authsvc.NewService(logger, db, jwtSecretKey, accessTokenDuration, refreshTokenDuration, jwtIssuer)
 	petStoreService := petstore.NewService(logger)
 
 	// Determine gRPC and HTTP ports, prioritizing environment variables
@@ -124,7 +122,8 @@ func run(ctx context.Context, logger *slog.Logger, cfg *config.Config) error {
 	}
 
 	// Start the gRPC server in a goroutine.
-	grpcServer, lis, err := grpcserver.New(ctx, logger, grpcPort, petStoreService, authService, jwtManager)
+	// grpcserver.New now takes jwtSecret and jwtIssuer directly
+	grpcServer, lis, err := grpcserver.New(ctx, logger, grpcPort, petStoreService, authService, jwtSecretKey, jwtIssuer)
 	if err != nil {
 		return fmt.Errorf("failed to create gRPC server: %w", err)
 	}
