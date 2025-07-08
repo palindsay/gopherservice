@@ -6,7 +6,12 @@
       "Bash(go mod:*)",
       "Bash(make:*)",
       "Bash(git clone:*)",
-      "Bash(gofmt:*)"
+      "Bash(gofmt:*)",
+      "Bash(python3:*)",
+      "Bash(go build:*)",
+      "Bash(go test:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }
