@@ -27,21 +27,28 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/golang-jwt/jwt/v5"
 	v1 "github.com/plindsay/gopherservice/api/v1"
 	"github.com/plindsay/gopherservice/internal/auth"
 	"github.com/plindsay/gopherservice/internal/database"
-	pkgauth "github.com/plindsay/gopherservice/pkg/auth"
+	// pkgauth "github.com/plindsay/gopherservice/pkg/auth" // Removed
 )
 
 var (
 	testAuthService *auth.Service
-	testJWTManager  *pkgauth.JWTManager
-	testDB          *sql.DB
+	// testJWTManager  *pkgauth.JWTManager // Removed
+	testDB *sql.DB
+
+	// Default JWT parameters for testing
+	testJWTSecretKey          = "test-secret-key-for-auth-service"
+	testJWTAccessTokenDuration = 5 * time.Minute
+	testJWTRefreshTokenDuration = 1 * time.Hour
+	testJWTIssuer             = "gopherservice-test-issuer"
 )
 
 func TestMain(m *testing.M) {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	testJWTManager = pkgauth.NewJWTManager("test-secret", 5*time.Minute, 1*time.Hour, "test-issuer", logger)
+	// testJWTManager = pkgauth.NewJWTManager("test-secret", 5*time.Minute, 1*time.Hour, "test-issuer", logger) // Removed
 
 	// Setup test database
 	var err error
@@ -51,7 +58,8 @@ func TestMain(m *testing.M) {
 	}
 	defer testDB.Close()
 
-	testAuthService = auth.NewService(logger, testJWTManager, testDB)
+	// testAuthService = auth.NewService(logger, testJWTManager, testDB) // Old
+	testAuthService = auth.NewService(logger, testDB, testJWTSecretKey, testJWTAccessTokenDuration, testJWTRefreshTokenDuration, testJWTIssuer)
 
 	exitVal := m.Run()
 	os.Exit(exitVal)
@@ -104,8 +112,78 @@ func TestAuthService_Login(t *testing.T) {
 	res, err := testAuthService.Login(context.Background(), loginReq)
 	require.NoError(t, err)
 	require.NotNil(t, res)
+	require.NotNil(t, res.Token)
 	assert.NotEmpty(t, res.Token.AccessToken)
+	assert.NotEmpty(t, res.Token.RefreshToken)
+	assert.Equal(t, "Bearer", res.Token.TokenType)
+	assert.InDelta(t, int32(testJWTAccessTokenDuration.Seconds()), res.Token.ExpiresIn, 1) // Check ExpiresIn within 1s delta
+
+	// Optionally, parse and verify claims if needed for specific tests
+	// For now, checking presence and basic fields is sufficient for this test.
+	claims := &auth.UserClaims{}
+	token, err := jwt.ParseWithClaims(res.Token.AccessToken, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(testJWTSecretKey), nil
+	})
+	require.NoError(t, err)
+	require.True(t, token.Valid)
+	assert.Equal(t, "loginuser@example.com", claims.Email)
+	assert.Equal(t, testJWTIssuer, claims.Issuer)
 }
+
+// TestAuthService_RefreshToken tests the token refresh functionality.
+// This is a new test as the RefreshToken method in service.go was updated from a stub.
+func TestAuthService_RefreshToken(t *testing.T) {
+	cleanupDB(t)
+	// Register and login a user to get tokens
+	registerReq := &v1.RegisterUserRequest{
+		Email:    "refreshuser@example.com",
+		Password: "password123",
+		FullName: "Refresh User",
+	}
+	_, err := testAuthService.RegisterUser(context.Background(), registerReq)
+	require.NoError(t, err)
+
+	loginReq := &v1.LoginRequest{
+		Credentials: &v1.UserCredentials{
+			Email:    "refreshuser@example.com",
+			Password: "password123",
+		},
+	}
+	loginRes, err := testAuthService.Login(context.Background(), loginReq)
+	require.NoError(t, err)
+	require.NotNil(t, loginRes.Token)
+	require.NotEmpty(t, loginRes.Token.RefreshToken)
+
+	// Test refresh token
+	refreshReq := &v1.RefreshTokenRequest{RefreshToken: loginRes.Token.RefreshToken}
+	refreshRes, err := testAuthService.RefreshToken(context.Background(), refreshReq)
+	require.NoError(t, err)
+	require.NotNil(t, refreshRes)
+	require.NotNil(t, refreshRes.Token)
+	assert.NotEmpty(t, refreshRes.Token.AccessToken)
+	assert.Equal(t, loginRes.Token.RefreshToken, refreshRes.Token.RefreshToken) // Assuming refresh token is not rotated for now
+	assert.Equal(t, "Bearer", refreshRes.Token.TokenType)
+	assert.InDelta(t, int32(testJWTAccessTokenDuration.Seconds()), refreshRes.Token.ExpiresIn, 1)
+
+	// Verify the new access token
+	newClaims := &auth.UserClaims{}
+	newToken, err := jwt.ParseWithClaims(refreshRes.Token.AccessToken, newClaims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(testJWTSecretKey), nil
+	})
+	require.NoError(t, err)
+	require.True(t, newToken.Valid)
+	assert.Equal(t, "refreshuser@example.com", newClaims.Email)
+	assert.Equal(t, testJWTIssuer, newClaims.Issuer)
+	assert.NotEqual(t, loginRes.Token.AccessToken, refreshRes.Token.AccessToken, "New access token should be different from the old one")
+}
+
+func TestAuthService_RefreshToken_InvalidToken(t *testing.T) {
+	cleanupDB(t)
+	refreshReq := &v1.RefreshTokenRequest{RefreshToken: "invalid-refresh-token"}
+	_, err := testAuthService.RefreshToken(context.Background(), refreshReq)
+	require.Error(t, err) // Expect an error for an invalid token
+}
+
 
 func TestAuthService_Login_InvalidCredentials(t *testing.T) {
 	cleanupDB(t)
