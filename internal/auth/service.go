@@ -1,3 +1,20 @@
+// Copyright 2025 Paddy Lindsay
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package auth provides authentication and authorization services for the gopherservice.
+// It implements user registration, login, JWT token generation and validation, and token refresh functionality.
+// The package handles both access tokens and refresh tokens, with role-based access control support.
 package auth
 
 import (
@@ -204,8 +221,6 @@ func (s *Service) RefreshToken(_ context.Context, req *v1.RefreshTokenRequest) (
 	return nil, errors.NewInternalError("refresh token functionality not implemented", nil).ToGRPCStatus()
 }
 
-
-
 // GetUser retrieves a user by their ID.
 func (s *Service) GetUser(ctx context.Context, req *v1.GetUserRequest) (*v1.GetUserResponse, error) {
 	if req.UserId == "" {
@@ -382,5 +397,3 @@ func (s *Service) ListUsers(ctx context.Context, req *v1.ListUsersRequest) (*v1.
 		TotalCount: totalCount,
 	}, nil
 }
-
-

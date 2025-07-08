@@ -1,8 +1,27 @@
+// Copyright 2025 Paddy Lindsay
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package main provides an example gRPC client for the gopherservice.
+// It demonstrates how to connect to the gRPC server, authenticate with the auth service,
+// and perform operations on the pet store service including creating and retrieving pets.
 package main
 
 import (
 	"context"
+	"flag"
 	"log"
+	"os"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -14,8 +33,22 @@ import (
 // main is the entry point for the gRPC example client.
 // It demonstrates how to connect to the gRPC server, create a pet, and retrieve it.
 func main() {
-	// Set up a connection to the gRPC server running on localhost:8080.
-	conn, err := grpc.NewClient("localhost:8080", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// Define command-line flags
+	var (
+		server = flag.String("server", getEnv("GRPC_SERVER", "localhost:8080"), "gRPC server address")
+		help   = flag.Bool("help", false, "Show help message")
+	)
+	flag.Parse()
+
+	if *help {
+		printUsage()
+		return
+	}
+
+	log.Printf("Connecting to gRPC server at %s", *server)
+
+	// Set up a connection to the gRPC server.
+	conn, err := grpc.NewClient(*server, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
@@ -49,6 +82,9 @@ func main() {
 	getPet(client, newToken)
 }
 
+// getToken registers a test user and logs in to obtain a JWT token.
+// It first attempts to register a user and then logs in to get the authentication token.
+// Returns the JWT token containing both access and refresh tokens.
 func getToken(client v1.AuthServiceClient) (*v1.JWTToken, error) {
 	log.Println("--- Registering User ---")
 	registerReq := &v1.RegisterUserRequest{
@@ -110,6 +146,9 @@ func getPet(client v1.PetStoreServiceClient, token *v1.JWTToken) {
 	log.Printf("Got pet: %v", res.GetPet())
 }
 
+// refreshToken uses a refresh token to obtain a new access token.
+// It takes the current JWT token and exchanges the refresh token for a new access token.
+// Returns the new JWT token with updated access and refresh tokens.
 func refreshToken(client v1.AuthServiceClient, token *v1.JWTToken) (*v1.JWTToken, error) {
 	log.Println("--- Refreshing Token ---")
 	refreshReq := &v1.RefreshTokenRequest{RefreshToken: token.RefreshToken}
@@ -119,4 +158,31 @@ func refreshToken(client v1.AuthServiceClient, token *v1.JWTToken) (*v1.JWTToken
 	}
 	log.Println("Token refreshed successfully.")
 	return refreshRes.Token, nil
+}
+
+// getEnv returns the value of an environment variable or a default value if not set.
+// It provides a simple way to configure the client through environment variables.
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+// printUsage prints usage information for the gRPC example client.
+// It shows available command-line options, environment variables, and usage examples.
+func printUsage() {
+	log.Printf("Usage: %s [options]", os.Args[0])
+	log.Println()
+	log.Println("Options:")
+	log.Println("  -server <address>  gRPC server address (default: localhost:8080)")
+	log.Println("  -help              Show this help message")
+	log.Println()
+	log.Println("Environment variables:")
+	log.Println("  GRPC_SERVER        gRPC server address (overrides default)")
+	log.Println()
+	log.Println("Examples:")
+	log.Println("  go run main.go                           # Connect to localhost:8080")
+	log.Println("  go run main.go -server=localhost:9090    # Connect to localhost:9090")
+	log.Println("  GRPC_SERVER=localhost:9090 go run main.go # Connect using environment variable")
 }

@@ -31,5 +31,3 @@ third_party/
 # Diagram files
 gopherservice.drawio
 
-# Local settings
-.claude/

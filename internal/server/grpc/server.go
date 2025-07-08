@@ -1,3 +1,20 @@
+// Copyright 2025 Paddy Lindsay
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package grpc provides gRPC server implementation with authentication, telemetry,
+// and service registration. It includes middleware for logging, authentication,
+// and request/response tracing, along with health checks and reflection services.
 package grpc
 
 import (
@@ -90,7 +107,9 @@ func New(_ context.Context, logger *slog.Logger, port int, petStoreService *pets
 	return s, lis, nil
 }
 
-// loggingInterceptor logs incoming gRPC requests.
+// loggingInterceptor creates a gRPC unary interceptor that logs incoming requests.
+// It logs the method name, request duration, response code, and any errors.
+// For successful requests, it logs at INFO level. For failed requests, it logs at ERROR level.
 func loggingInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		start := time.Now()
