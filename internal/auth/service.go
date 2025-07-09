@@ -31,7 +31,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	v1 "github.com/plindsay/gopherservice/api/v1"
-	// "github.com/plindsay/gopherservice/pkg/auth" // Will be removed
+	// "github.com/plindsay/gopherservice/pkg/auth" // Will be removed.
 	"github.com/plindsay/gopherservice/pkg/errors"
 )
 
@@ -47,28 +47,28 @@ type UserClaims struct {
 // It provides user authentication, registration, and token management functionality.
 type Service struct {
 	v1.UnimplementedAuthServiceServer
-	logger                *slog.Logger
-	db                    *sql.DB
-	jwtSecretKey          []byte
-	jwtAccessTokenDuration time.Duration
+	logger                  *slog.Logger
+	db                      *sql.DB
+	jwtSecretKey            []byte
+	jwtAccessTokenDuration  time.Duration
 	jwtRefreshTokenDuration time.Duration
-	jwtIssuer             string
+	jwtIssuer               string
 }
 
 // NewService creates a new authentication service instance.
 func NewService(logger *slog.Logger, db *sql.DB, jwtSecretKey string, accessTokenDuration, refreshTokenDuration time.Duration, jwtIssuer string) *Service {
 	return &Service{
-		logger:                logger,
-		db:                    db,
-		jwtSecretKey:          []byte(jwtSecretKey),
-		jwtAccessTokenDuration: accessTokenDuration,
+		logger:                  logger,
+		db:                      db,
+		jwtSecretKey:            []byte(jwtSecretKey),
+		jwtAccessTokenDuration:  accessTokenDuration,
 		jwtRefreshTokenDuration: refreshTokenDuration,
-		jwtIssuer:             jwtIssuer,
+		jwtIssuer:               jwtIssuer,
 	}
 }
 
 // HashPassword generates a bcrypt hash of the password.
-// This function was previously in pkg/auth/auth.go
+// This function was previously in pkg/auth/auth.go.
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(bytes), err
@@ -76,7 +76,7 @@ func HashPassword(password string) (string, error) {
 
 // VerifyPassword compares a bcrypt hashed password with its possible plaintext equivalent.
 // Returns true if the password matches, false otherwise.
-// This function was previously in pkg/auth/auth.go
+// This function was previously in pkg/auth/auth.go.
 func VerifyPassword(hashedPassword, password string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	return err == nil
@@ -241,7 +241,7 @@ func (s *Service) Login(ctx context.Context, req *v1.LoginRequest) (*v1.LoginRes
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    s.jwtIssuer,
-			Subject:   user.Id, // Linking refresh token to user
+			Subject:   user.Id,          // Linking refresh token to user
 			ID:        uuid.NewString(), // Unique ID for the refresh token itself
 		},
 	}
@@ -255,7 +255,7 @@ func (s *Service) Login(ctx context.Context, req *v1.LoginRequest) (*v1.LoginRes
 		AccessToken:  accessTokenString,
 		RefreshToken: refreshTokenString,
 		TokenType:    "Bearer",
-		ExpiresIn:    int32(s.jwtAccessTokenDuration.Seconds()),
+		ExpiresAt:    time.Now().Add(s.jwtAccessTokenDuration).Unix(),
 	}
 
 	now := time.Now()
@@ -307,7 +307,7 @@ func (s *Service) RefreshToken(ctx context.Context, req *v1.RefreshTokenRequest)
 	claims := &UserClaims{}
 	token, err := jwt.ParseWithClaims(req.RefreshToken, claims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.NewAuthenticationError("unexpected signing method: %v", token.Header["alg"]).ToGRPCStatus()
+			return nil, errors.NewAuthenticationError("unexpected signing method: %v", token.Header["alg"].(string)).ToGRPCStatus()
 		}
 		return s.jwtSecretKey, nil
 	})
@@ -372,7 +372,7 @@ func (s *Service) RefreshToken(ctx context.Context, req *v1.RefreshTokenRequest)
 		AccessToken:  newAccessTokenString,
 		RefreshToken: req.RefreshToken, // Return the same refresh token or a new one if rotating
 		TokenType:    "Bearer",
-		ExpiresIn:    int32(s.jwtAccessTokenDuration.Seconds()),
+		ExpiresAt:    time.Now().Add(s.jwtAccessTokenDuration).Unix(),
 	}
 
 	s.logger.Info("access token refreshed", "user_id", claims.UserID)

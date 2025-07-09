@@ -31,19 +31,19 @@ import (
 	v1 "github.com/plindsay/gopherservice/api/v1"
 	"github.com/plindsay/gopherservice/internal/auth"
 	"github.com/plindsay/gopherservice/internal/database"
-	// pkgauth "github.com/plindsay/gopherservice/pkg/auth" // Removed
+	// pkgauth "github.com/plindsay/gopherservice/pkg/auth" // Removed.
 )
 
 var (
 	testAuthService *auth.Service
-	// testJWTManager  *pkgauth.JWTManager // Removed
+	// testJWTManager  *pkgauth.JWTManager // Removed.
 	testDB *sql.DB
 
-	// Default JWT parameters for testing
-	testJWTSecretKey          = "test-secret-key-for-auth-service"
-	testJWTAccessTokenDuration = 5 * time.Minute
+	// Default JWT parameters for testing.
+	testJWTSecretKey            = "test-secret-key-for-auth-service"
+	testJWTAccessTokenDuration  = 5 * time.Minute
 	testJWTRefreshTokenDuration = 1 * time.Hour
-	testJWTIssuer             = "gopherservice-test-issuer"
+	testJWTIssuer               = "gopherservice-test-issuer"
 )
 
 func TestMain(m *testing.M) {
@@ -116,12 +116,13 @@ func TestAuthService_Login(t *testing.T) {
 	assert.NotEmpty(t, res.Token.AccessToken)
 	assert.NotEmpty(t, res.Token.RefreshToken)
 	assert.Equal(t, "Bearer", res.Token.TokenType)
-	assert.InDelta(t, int32(testJWTAccessTokenDuration.Seconds()), res.Token.ExpiresIn, 1) // Check ExpiresIn within 1s delta
+	assert.Greater(t, res.Token.ExpiresAt, time.Now().Unix())                                       // Check token expires in the future
+	assert.LessOrEqual(t, res.Token.ExpiresAt, time.Now().Add(testJWTAccessTokenDuration).Unix()+1) // Check expires within expected duration
 
 	// Optionally, parse and verify claims if needed for specific tests
 	// For now, checking presence and basic fields is sufficient for this test.
 	claims := &auth.UserClaims{}
-	token, err := jwt.ParseWithClaims(res.Token.AccessToken, claims, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(res.Token.AccessToken, claims, func(_ *jwt.Token) (interface{}, error) {
 		return []byte(testJWTSecretKey), nil
 	})
 	require.NoError(t, err)
@@ -163,11 +164,12 @@ func TestAuthService_RefreshToken(t *testing.T) {
 	assert.NotEmpty(t, refreshRes.Token.AccessToken)
 	assert.Equal(t, loginRes.Token.RefreshToken, refreshRes.Token.RefreshToken) // Assuming refresh token is not rotated for now
 	assert.Equal(t, "Bearer", refreshRes.Token.TokenType)
-	assert.InDelta(t, int32(testJWTAccessTokenDuration.Seconds()), refreshRes.Token.ExpiresIn, 1)
+	assert.Greater(t, refreshRes.Token.ExpiresAt, time.Now().Unix())                                       // Check token expires in the future
+	assert.LessOrEqual(t, refreshRes.Token.ExpiresAt, time.Now().Add(testJWTAccessTokenDuration).Unix()+1) // Check expires within expected duration
 
 	// Verify the new access token
 	newClaims := &auth.UserClaims{}
-	newToken, err := jwt.ParseWithClaims(refreshRes.Token.AccessToken, newClaims, func(token *jwt.Token) (interface{}, error) {
+	newToken, err := jwt.ParseWithClaims(refreshRes.Token.AccessToken, newClaims, func(_ *jwt.Token) (interface{}, error) {
 		return []byte(testJWTSecretKey), nil
 	})
 	require.NoError(t, err)
@@ -183,7 +185,6 @@ func TestAuthService_RefreshToken_InvalidToken(t *testing.T) {
 	_, err := testAuthService.RefreshToken(context.Background(), refreshReq)
 	require.Error(t, err) // Expect an error for an invalid token
 }
-
 
 func TestAuthService_Login_InvalidCredentials(t *testing.T) {
 	cleanupDB(t)

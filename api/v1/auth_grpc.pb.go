@@ -19,16 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AuthService_RegisterUser_FullMethodName            = "/v1.AuthService/RegisterUser"
-	AuthService_Login_FullMethodName                   = "/v1.AuthService/Login"
-	AuthService_Logout_FullMethodName                  = "/v1.AuthService/Logout"
-	AuthService_RefreshToken_FullMethodName            = "/v1.AuthService/RefreshToken"
-	AuthService_ValidateToken_FullMethodName           = "/v1.AuthService/ValidateToken"
-	AuthService_GetUser_FullMethodName                 = "/v1.AuthService/GetUser"
-	AuthService_UpdateUser_FullMethodName              = "/v1.AuthService/UpdateUser"
-	AuthService_ChangePassword_FullMethodName          = "/v1.AuthService/ChangePassword"
-	AuthService_ListUsers_FullMethodName               = "/v1.AuthService/ListUsers"
-	AuthService_DebugCreateUserAndToken_FullMethodName = "/v1.AuthService/DebugCreateUserAndToken"
+	AuthService_RegisterUser_FullMethodName   = "/v1.AuthService/RegisterUser"
+	AuthService_Login_FullMethodName          = "/v1.AuthService/Login"
+	AuthService_Logout_FullMethodName         = "/v1.AuthService/Logout"
+	AuthService_RefreshToken_FullMethodName   = "/v1.AuthService/RefreshToken"
+	AuthService_GetUser_FullMethodName        = "/v1.AuthService/GetUser"
+	AuthService_UpdateUser_FullMethodName     = "/v1.AuthService/UpdateUser"
+	AuthService_ChangePassword_FullMethodName = "/v1.AuthService/ChangePassword"
+	AuthService_ListUsers_FullMethodName      = "/v1.AuthService/ListUsers"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -50,9 +48,6 @@ type AuthServiceClient interface {
 	// RefreshToken obtains a new access token using a refresh token.
 	// This endpoint allows clients to refresh expired access tokens.
 	RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error)
-	// ValidateToken validates a JWT token and returns its claims.
-	// This endpoint is used by services to validate tokens.
-	ValidateToken(ctx context.Context, in *ValidateTokenRequest, opts ...grpc.CallOption) (*ValidateTokenResponse, error)
 	// GetUser retrieves user information by ID.
 	// This endpoint requires authentication and appropriate permissions.
 	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error)
@@ -65,8 +60,6 @@ type AuthServiceClient interface {
 	// ListUsers lists users with pagination and filtering.
 	// This endpoint requires authentication and admin permissions.
 	ListUsers(ctx context.Context, in *ListUsersRequest, opts ...grpc.CallOption) (*ListUsersResponse, error)
-	// DebugCreateUserAndToken creates a user and returns a token for debugging.
-	DebugCreateUserAndToken(ctx context.Context, in *DebugCreateUserAndTokenRequest, opts ...grpc.CallOption) (*DebugCreateUserAndTokenResponse, error)
 }
 
 type authServiceClient struct {
@@ -117,16 +110,6 @@ func (c *authServiceClient) RefreshToken(ctx context.Context, in *RefreshTokenRe
 	return out, nil
 }
 
-func (c *authServiceClient) ValidateToken(ctx context.Context, in *ValidateTokenRequest, opts ...grpc.CallOption) (*ValidateTokenResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ValidateTokenResponse)
-	err := c.cc.Invoke(ctx, AuthService_ValidateToken_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *authServiceClient) GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetUserResponse)
@@ -167,16 +150,6 @@ func (c *authServiceClient) ListUsers(ctx context.Context, in *ListUsersRequest,
 	return out, nil
 }
 
-func (c *authServiceClient) DebugCreateUserAndToken(ctx context.Context, in *DebugCreateUserAndTokenRequest, opts ...grpc.CallOption) (*DebugCreateUserAndTokenResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DebugCreateUserAndTokenResponse)
-	err := c.cc.Invoke(ctx, AuthService_DebugCreateUserAndToken_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -196,9 +169,6 @@ type AuthServiceServer interface {
 	// RefreshToken obtains a new access token using a refresh token.
 	// This endpoint allows clients to refresh expired access tokens.
 	RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error)
-	// ValidateToken validates a JWT token and returns its claims.
-	// This endpoint is used by services to validate tokens.
-	ValidateToken(context.Context, *ValidateTokenRequest) (*ValidateTokenResponse, error)
 	// GetUser retrieves user information by ID.
 	// This endpoint requires authentication and appropriate permissions.
 	GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error)
@@ -211,8 +181,6 @@ type AuthServiceServer interface {
 	// ListUsers lists users with pagination and filtering.
 	// This endpoint requires authentication and admin permissions.
 	ListUsers(context.Context, *ListUsersRequest) (*ListUsersResponse, error)
-	// DebugCreateUserAndToken creates a user and returns a token for debugging.
-	DebugCreateUserAndToken(context.Context, *DebugCreateUserAndTokenRequest) (*DebugCreateUserAndTokenResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -235,9 +203,6 @@ func (UnimplementedAuthServiceServer) Logout(context.Context, *LogoutRequest) (*
 func (UnimplementedAuthServiceServer) RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RefreshToken not implemented")
 }
-func (UnimplementedAuthServiceServer) ValidateToken(context.Context, *ValidateTokenRequest) (*ValidateTokenResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ValidateToken not implemented")
-}
 func (UnimplementedAuthServiceServer) GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUser not implemented")
 }
@@ -249,9 +214,6 @@ func (UnimplementedAuthServiceServer) ChangePassword(context.Context, *ChangePas
 }
 func (UnimplementedAuthServiceServer) ListUsers(context.Context, *ListUsersRequest) (*ListUsersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListUsers not implemented")
-}
-func (UnimplementedAuthServiceServer) DebugCreateUserAndToken(context.Context, *DebugCreateUserAndTokenRequest) (*DebugCreateUserAndTokenResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DebugCreateUserAndToken not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -346,24 +308,6 @@ func _AuthService_RefreshToken_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_ValidateToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ValidateTokenRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AuthServiceServer).ValidateToken(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AuthService_ValidateToken_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).ValidateToken(ctx, req.(*ValidateTokenRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _AuthService_GetUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetUserRequest)
 	if err := dec(in); err != nil {
@@ -436,24 +380,6 @@ func _AuthService_ListUsers_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_DebugCreateUserAndToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DebugCreateUserAndTokenRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AuthServiceServer).DebugCreateUserAndToken(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AuthService_DebugCreateUserAndToken_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).DebugCreateUserAndToken(ctx, req.(*DebugCreateUserAndTokenRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -478,10 +404,6 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AuthService_RefreshToken_Handler,
 		},
 		{
-			MethodName: "ValidateToken",
-			Handler:    _AuthService_ValidateToken_Handler,
-		},
-		{
 			MethodName: "GetUser",
 			Handler:    _AuthService_GetUser_Handler,
 		},
@@ -496,10 +418,6 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListUsers",
 			Handler:    _AuthService_ListUsers_Handler,
-		},
-		{
-			MethodName: "DebugCreateUserAndToken",
-			Handler:    _AuthService_DebugCreateUserAndToken_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

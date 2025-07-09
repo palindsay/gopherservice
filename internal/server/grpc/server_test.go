@@ -35,20 +35,13 @@ import (
 	authsvc "github.com/plindsay/gopherservice/internal/auth"
 	"github.com/plindsay/gopherservice/internal/database"
 	"github.com/plindsay/gopherservice/internal/petstore"
-	"github.com/plindsay/gopherservice/pkg/auth"
 )
 
-// Helper to create test JWT manager.
-func createTestJWTManager(t *testing.T) *auth.JWTManager {
-	t.Helper()
-	return auth.NewJWTManager(
-		"test-secret-key",
-		15*time.Minute,
-		7*24*time.Hour,
-		"test-service",
-		slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn})),
-	)
-}
+// Test constants.
+const (
+	testJWTSecretKey = "test-secret-key"
+	testJWTIssuer    = "test-service"
+)
 
 // Helper to create test database.
 func createTestDatabase(t *testing.T) *sql.DB {
@@ -67,11 +60,10 @@ func createTestLogger() *slog.Logger {
 
 func TestNew(t *testing.T) {
 	logger := createTestLogger()
-	jwtManager := createTestJWTManager(t)
 	db := createTestDatabase(t)
 	defer db.Close()
 
-	authService := authsvc.NewService(logger, jwtManager, db)
+	authService := authsvc.NewService(logger, db, testJWTSecretKey, 15*time.Minute, 7*24*time.Hour, testJWTIssuer)
 	petStoreService := petstore.NewService(logger)
 
 	tests := []struct {
@@ -98,7 +90,7 @@ func TestNew(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-			server, lis, err := New(ctx, logger, tt.port, petStoreService, authService, jwtManager)
+			server, lis, err := New(ctx, logger, tt.port, petStoreService, authService, testJWTSecretKey, testJWTIssuer)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
@@ -122,15 +114,14 @@ func TestNew(t *testing.T) {
 
 func TestServerComponents(t *testing.T) {
 	logger := createTestLogger()
-	jwtManager := createTestJWTManager(t)
 	db := createTestDatabase(t)
 	defer db.Close()
 
-	authService := authsvc.NewService(logger, jwtManager, db)
+	authService := authsvc.NewService(logger, db, testJWTSecretKey, 15*time.Minute, 7*24*time.Hour, testJWTIssuer)
 	petStoreService := petstore.NewService(logger)
 
 	ctx := context.Background()
-	server, lis, err := New(ctx, logger, 0, petStoreService, authService, jwtManager)
+	server, lis, err := New(ctx, logger, 0, petStoreService, authService, testJWTSecretKey, testJWTIssuer)
 	if err != nil {
 		t.Fatalf("failed to create server: %v", err)
 	}
@@ -300,15 +291,14 @@ func TestLoggingInterceptor(t *testing.T) {
 
 func TestPublicMethods(t *testing.T) {
 	logger := createTestLogger()
-	jwtManager := createTestJWTManager(t)
 	db := createTestDatabase(t)
 	defer db.Close()
 
-	authService := authsvc.NewService(logger, jwtManager, db)
+	authService := authsvc.NewService(logger, db, testJWTSecretKey, 15*time.Minute, 7*24*time.Hour, testJWTIssuer)
 	petStoreService := petstore.NewService(logger)
 
 	ctx := context.Background()
-	server, lis, err := New(ctx, logger, 0, petStoreService, authService, jwtManager)
+	server, lis, err := New(ctx, logger, 0, petStoreService, authService, testJWTSecretKey, testJWTIssuer)
 	if err != nil {
 		t.Fatalf("failed to create server: %v", err)
 	}
@@ -383,15 +373,14 @@ func TestPublicMethods(t *testing.T) {
 
 func TestServerOptions(t *testing.T) {
 	logger := createTestLogger()
-	jwtManager := createTestJWTManager(t)
 	db := createTestDatabase(t)
 	defer db.Close()
 
-	authService := authsvc.NewService(logger, jwtManager, db)
+	authService := authsvc.NewService(logger, db, testJWTSecretKey, 15*time.Minute, 7*24*time.Hour, testJWTIssuer)
 	petStoreService := petstore.NewService(logger)
 
 	ctx := context.Background()
-	server, lis, err := New(ctx, logger, 0, petStoreService, authService, jwtManager)
+	server, lis, err := New(ctx, logger, 0, petStoreService, authService, testJWTSecretKey, testJWTIssuer)
 	if err != nil {
 		t.Fatalf("failed to create server: %v", err)
 	}
@@ -426,15 +415,14 @@ func (w *testWriter) Write(p []byte) (int, error) {
 
 func TestConcurrentRequests(t *testing.T) {
 	logger := createTestLogger()
-	jwtManager := createTestJWTManager(t)
 	db := createTestDatabase(t)
 	defer db.Close()
 
-	authService := authsvc.NewService(logger, jwtManager, db)
+	authService := authsvc.NewService(logger, db, testJWTSecretKey, 15*time.Minute, 7*24*time.Hour, testJWTIssuer)
 	petStoreService := petstore.NewService(logger)
 
 	ctx := context.Background()
-	server, lis, err := New(ctx, logger, 0, petStoreService, authService, jwtManager)
+	server, lis, err := New(ctx, logger, 0, petStoreService, authService, testJWTSecretKey, testJWTIssuer)
 	if err != nil {
 		t.Fatalf("failed to create server: %v", err)
 	}

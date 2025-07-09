@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(rm:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(go mod:*)",
+      "Bash(make:*)",
+      "Bash(grep:*)",
+      "Bash(go test:*)",
+      "Bash(go build:*)",
+      "Bash(gofmt:*)",
+      "Bash(goimports:*)",
+      "Bash(go install:*)",
+      "Bash(~/go/bin/goimports -w cmd/server/main.go)"
+    ],
+    "deny": []
+  }
+}

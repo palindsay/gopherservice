@@ -24,12 +24,6 @@ import (
 	"net"
 	"time"
 
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/keepalive"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -46,7 +40,7 @@ import (
 	v1 "github.com/plindsay/gopherservice/api/v1"
 	internalauth "github.com/plindsay/gopherservice/internal/auth" // Renamed to avoid conflict
 	"github.com/plindsay/gopherservice/internal/petstore"
-	// "github.com/plindsay/gopherservice/pkg/auth" // This will be removed
+	// "github.com/plindsay/gopherservice/pkg/auth" // This will be removed.
 )
 
 // userClaimsContextKey is the key for UserClaims in context.
@@ -54,20 +48,20 @@ type userClaimsContextKey struct{}
 
 // AuthInterceptor provides gRPC interceptors for authentication and authorization.
 type AuthInterceptor struct {
-	logger         *slog.Logger
-	jwtSecretKey   []byte
-	jwtIssuer      string
-	publicMethods  map[string]bool
+	logger           *slog.Logger
+	jwtSecretKey     []byte
+	jwtIssuer        string
+	publicMethods    map[string]bool
 	roleRequirements map[string][]string
 }
 
 // NewAuthInterceptor creates a new AuthInterceptor.
 func NewAuthInterceptor(logger *slog.Logger, jwtSecretKey string, jwtIssuer string) *AuthInterceptor {
 	return &AuthInterceptor{
-		logger:         logger,
-		jwtSecretKey:   []byte(jwtSecretKey),
-		jwtIssuer:      jwtIssuer,
-		publicMethods:  make(map[string]bool),
+		logger:           logger,
+		jwtSecretKey:     []byte(jwtSecretKey),
+		jwtIssuer:        jwtIssuer,
+		publicMethods:    make(map[string]bool),
 		roleRequirements: make(map[string][]string),
 	}
 }
@@ -237,7 +231,6 @@ func (w *wrappedServerStream) Context() context.Context {
 	return w.newCtx
 }
 
-
 // New creates a new gRPC server instance and a listener with authentication.
 // It takes a context, a logger, the port to listen on, and the service implementations.
 // It returns the gRPC server, the network listener, and an error if the listener cannot be created.
@@ -269,7 +262,6 @@ func New(_ context.Context, logger *slog.Logger, port int, petStoreService *pets
 	// Removed PlaceOrder and GetOrder as they are not in v1.PetStoreService based on current files
 	// authInterceptor.AddRoleRequirement("/v1.PetStoreService/PlaceOrder", []string{"user", "admin"})
 	// authInterceptor.AddRoleRequirement("/v1.PetStoreService/GetOrder", []string{"user", "admin"})
-
 
 	// Production-ready server options with authentication
 	opts := []grpc.ServerOption{

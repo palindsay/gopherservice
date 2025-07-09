@@ -168,7 +168,7 @@ func TestRun_InvalidConfig(t *testing.T) {
 				c := &config.Config{}
 				c.Server.Port = 8080
 				c.Server.GracefulShutdownTimeout = 5
-				c.Database.DSN = "" // Empty DSN should cause error
+				c.Database.DSN = "invalid://dsn" // Invalid DSN should cause error
 				c.JWT.SecretKey = "test-secret"
 				c.JWT.TokenDuration = 15
 				c.JWT.RefreshDuration = 10080

@@ -36,7 +36,8 @@ import (
 	"github.com/plindsay/gopherservice/internal/log"
 	"github.com/plindsay/gopherservice/internal/petstore"
 	grpcserver "github.com/plindsay/gopherservice/internal/server/grpc"
-	// "github.com/plindsay/gopherservice/pkg/auth" // Removed
+
+	// "github.com/plindsay/gopherservice/pkg/auth" // Removed.
 
 	v1 "github.com/plindsay/gopherservice/api/v1"
 )
