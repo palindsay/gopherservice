@@ -40,7 +40,7 @@ var (
 	testDB *sql.DB
 
 	// Default JWT parameters for testing.
-	testJWTSecretKey            = "test-secret-key-for-auth-service"
+	testJWTSecretKey            = "test-secret-key-for-auth-service-32-chars"
 	testJWTAccessTokenDuration  = 5 * time.Minute
 	testJWTRefreshTokenDuration = 1 * time.Hour
 	testJWTIssuer               = "gopherservice-test-issuer"
@@ -162,18 +162,15 @@ func TestAuthService_RefreshToken(t *testing.T) {
 	require.NotNil(t, refreshRes)
 	require.NotNil(t, refreshRes.Token)
 	assert.NotEmpty(t, refreshRes.Token.AccessToken)
-	assert.Equal(t, loginRes.Token.RefreshToken, refreshRes.Token.RefreshToken) // Assuming refresh token is not rotated for now
+	assert.NotEqual(t, loginRes.Token.RefreshToken, refreshRes.Token.RefreshToken) // Refresh tokens are rotated for security
 	assert.Equal(t, "Bearer", refreshRes.Token.TokenType)
 	assert.Greater(t, refreshRes.Token.ExpiresAt, time.Now().Unix())                                       // Check token expires in the future
 	assert.LessOrEqual(t, refreshRes.Token.ExpiresAt, time.Now().Add(testJWTAccessTokenDuration).Unix()+1) // Check expires within expected duration
 
-	// Verify the new access token
-	newClaims := &auth.UserClaims{}
-	newToken, err := jwt.ParseWithClaims(refreshRes.Token.AccessToken, newClaims, func(_ *jwt.Token) (interface{}, error) {
-		return []byte(testJWTSecretKey), nil
-	})
+	// Verify the new access token by validating it with the JWT manager
+	newClaims, err := testAuthService.GetJWTManager().ValidateToken(refreshRes.Token.AccessToken)
 	require.NoError(t, err)
-	require.True(t, newToken.Valid)
+	require.NotNil(t, newClaims)
 	assert.Equal(t, "refreshuser@example.com", newClaims.Email)
 	assert.Equal(t, testJWTIssuer, newClaims.Issuer)
 	assert.NotEqual(t, loginRes.Token.AccessToken, refreshRes.Token.AccessToken, "New access token should be different from the old one")

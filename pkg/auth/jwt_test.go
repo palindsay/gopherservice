@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
-	v1 "github.com/plindsay/gopherservice/api/v1"
+	internauth "github.com/plindsay/gopherservice/internal/auth"
 	"github.com/plindsay/gopherservice/pkg/auth"
 )
 
@@ -37,10 +37,18 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 
-func newTestJWTManager(t *testing.T) *auth.JWTManager {
+func newTestJWTManager(t *testing.T) *auth.Manager {
 	t.Helper()
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	return auth.NewJWTManager("test-secret", 5*time.Minute, 1*time.Hour, "test-issuer", logger)
+	manager, err := auth.NewManager(auth.Config{
+		SecretKey:            "test-secret-key-that-is-long-enough-32-chars",
+		AccessTokenDuration:  5 * time.Minute,
+		RefreshTokenDuration: 1 * time.Hour,
+		Issuer:               "test-issuer",
+		Audience:             []string{"test"},
+	}, logger)
+	require.NoError(t, err)
+	return manager
 }
 
 func TestJWTManager_GenerateAndValidateToken(t *testing.T) {
@@ -60,20 +68,30 @@ func TestJWTManager_GenerateAndValidateToken(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, claims)
 
-	assert.Equal(t, userID, claims.UserId)
+	assert.Equal(t, userID, claims.UserID)
 	assert.Equal(t, email, claims.Email)
 	assert.Equal(t, roles, claims.Roles)
 }
 
 func TestJWTManager_TokenExpiration(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	manager := auth.NewJWTManager("test-secret", -1*time.Second, 1*time.Hour, "test-issuer", logger)
+	manager, err := auth.NewManager(auth.Config{
+		SecretKey:            "test-secret-key-that-is-long-enough-32-chars",
+		AccessTokenDuration:  1 * time.Nanosecond, // Very short duration
+		RefreshTokenDuration: 1 * time.Hour,
+		Issuer:               "test-issuer",
+		Audience:             []string{"test"},
+	}, logger)
+	require.NoError(t, err)
 	userID := "test-user"
 	email := "test@example.com"
 	roles := []string{"user"}
 
 	token, err := manager.GenerateToken(userID, email, roles)
 	require.NoError(t, err)
+
+	// Wait for token to expire
+	time.Sleep(1 * time.Millisecond)
 
 	_, err = manager.ValidateToken(token.AccessToken)
 	require.Error(t, err)
@@ -90,7 +108,12 @@ func TestJWTManager_RevokeToken(t *testing.T) {
 
 	manager.RevokeToken(token.RefreshToken)
 
-	_, err = manager.RefreshToken(token.RefreshToken)
+	// Test user details function for refresh
+	getUserDetails := func(_ string) (email string, roles []string, err error) {
+		return "test@example.com", []string{"user"}, nil
+	}
+
+	_, err = manager.RefreshToken(token.RefreshToken, getUserDetails)
 	require.Error(t, err)
 }
 
@@ -105,8 +128,13 @@ func TestJWTManager_RefreshToken(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, token)
 
+	// Test user details function for refresh
+	getUserDetails := func(_ string) (email string, roles []string, err error) {
+		return "test@example.com", []string{"user"}, nil
+	}
+
 	// Refresh token
-	newToken, err := manager.RefreshToken(token.RefreshToken)
+	newToken, err := manager.RefreshToken(token.RefreshToken, getUserDetails)
 	require.NoError(t, err)
 	require.NotNil(t, newToken)
 
@@ -114,23 +142,23 @@ func TestJWTManager_RefreshToken(t *testing.T) {
 	assert.NotEmpty(t, newToken.RefreshToken)
 
 	// Verify old refresh token is invalid
-	_, err = manager.RefreshToken(token.RefreshToken)
+	_, err = manager.RefreshToken(token.RefreshToken, getUserDetails)
 	require.Error(t, err)
 
 	// Validate new access token
 	claims, err := manager.ValidateToken(newToken.AccessToken)
 	require.NoError(t, err)
-	assert.Equal(t, userID, claims.UserId)
+	assert.Equal(t, userID, claims.UserID)
 }
 
 func TestPasswordHashing(t *testing.T) {
 	password := "password123"
-	hash, err := auth.HashPassword(password)
+	hash, err := internauth.HashPassword(password)
 	require.NoError(t, err)
 	assert.NotEmpty(t, hash)
 
-	assert.True(t, auth.VerifyPassword(hash, password))
-	assert.False(t, auth.VerifyPassword(hash, "wrongpassword"))
+	assert.True(t, internauth.VerifyPassword(hash, password))
+	assert.False(t, internauth.VerifyPassword(hash, "wrongpassword"))
 }
 
 func TestAuthInterceptor_Unary(t *testing.T) {
@@ -144,7 +172,7 @@ func TestAuthInterceptor_Unary(t *testing.T) {
 		return "success", nil
 	}
 	info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/PublicMethod"}
-	_, err := interceptor.Unary()(context.Background(), nil, info, handler)
+	_, err := interceptor.UnaryInterceptor()(context.Background(), nil, info, handler)
 	require.NoError(t, err)
 
 	// Test case 2: Protected method, valid token
@@ -159,29 +187,28 @@ func TestAuthInterceptor_Unary(t *testing.T) {
 	handler = func(ctx context.Context, _ interface{}) (interface{}, error) {
 		claims, ok := auth.GetClaimsFromContext(ctx)
 		require.True(t, ok)
-		assert.Equal(t, userID, claims.UserId)
+		assert.Equal(t, userID, claims.UserID)
 		return "success", nil
 	}
 	info = &grpc.UnaryServerInfo{FullMethod: "/test.Service/ProtectedMethod"}
-	_, err = interceptor.Unary()(ctx, nil, info, handler)
+	_, err = interceptor.UnaryInterceptor()(ctx, nil, info, handler)
 	require.NoError(t, err)
 
 	// Test case 3: Protected method, no token
 	info = &grpc.UnaryServerInfo{FullMethod: "/test.Service/ProtectedMethod"}
-	_, err = interceptor.Unary()(context.Background(), nil, info, handler)
+	_, err = interceptor.UnaryInterceptor()(context.Background(), nil, info, handler)
 	require.Error(t, err)
 
 	// Test case 4: Role requirement
 	interceptor.AddRoleRequirement("/test.Service/AdminMethod", []string{"admin"})
 	info = &grpc.UnaryServerInfo{FullMethod: "/test.Service/AdminMethod"}
-	_, err = interceptor.Unary()(ctx, nil, info, handler)
+	_, err = interceptor.UnaryInterceptor()(ctx, nil, info, handler)
 	require.Error(t, err)
 }
 
 func TestContextGetters(t *testing.T) {
-	claims := &v1.TokenClaims{UserId: "test-user"}
-	ctx := context.WithValue(context.Background(), auth.ClaimsKey, claims)
-	ctx = context.WithValue(ctx, auth.UserIDKey, "test-user")
+	claims := &auth.Claims{UserID: "test-user"}
+	ctx := auth.AddClaimsToContext(context.Background(), claims)
 
 	retrievedClaims, ok := auth.GetClaimsFromContext(ctx)
 	require.True(t, ok)

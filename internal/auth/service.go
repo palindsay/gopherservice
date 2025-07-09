@@ -25,45 +25,50 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	v1 "github.com/plindsay/gopherservice/api/v1"
-	// "github.com/plindsay/gopherservice/pkg/auth" // Will be removed.
+	"github.com/plindsay/gopherservice/pkg/auth"
 	"github.com/plindsay/gopherservice/pkg/errors"
 )
 
-// UserClaims defines the JWT claims for a user.
-type UserClaims struct {
-	UserID string   `json:"user_id"`
-	Email  string   `json:"email"`
-	Roles  []string `json:"roles"`
-	jwt.RegisteredClaims
+// UserClaims is an alias for the auth package Claims for backward compatibility.
+type UserClaims = auth.Claims
+
+// GetJWTManager returns the JWT manager for testing purposes.
+func (s *Service) GetJWTManager() *auth.Manager {
+	return s.jwtManager
 }
 
 // Service implements the AuthService gRPC interface.
 // It provides user authentication, registration, and token management functionality.
 type Service struct {
 	v1.UnimplementedAuthServiceServer
-	logger                  *slog.Logger
-	db                      *sql.DB
-	jwtSecretKey            []byte
-	jwtAccessTokenDuration  time.Duration
-	jwtRefreshTokenDuration time.Duration
-	jwtIssuer               string
+	logger     *slog.Logger
+	db         *sql.DB
+	jwtManager *auth.Manager
 }
 
 // NewService creates a new authentication service instance.
 func NewService(logger *slog.Logger, db *sql.DB, jwtSecretKey string, accessTokenDuration, refreshTokenDuration time.Duration, jwtIssuer string) *Service {
+	jwtManager, err := auth.NewManager(auth.Config{
+		SecretKey:            jwtSecretKey,
+		AccessTokenDuration:  accessTokenDuration,
+		RefreshTokenDuration: refreshTokenDuration,
+		Issuer:               jwtIssuer,
+		Audience:             []string{"api"},
+	}, logger)
+	if err != nil {
+		logger.Error("failed to create JWT manager", "error", err)
+		panic(err) // This is a configuration error, should fail fast
+	}
+
 	return &Service{
-		logger:                  logger,
-		db:                      db,
-		jwtSecretKey:            []byte(jwtSecretKey),
-		jwtAccessTokenDuration:  accessTokenDuration,
-		jwtRefreshTokenDuration: refreshTokenDuration,
-		jwtIssuer:               jwtIssuer,
+		logger:     logger,
+		db:         db,
+		jwtManager: jwtManager,
 	}
 }
 
@@ -212,50 +217,10 @@ func (s *Service) Login(ctx context.Context, req *v1.LoginRequest) (*v1.LoginRes
 		return nil, errors.NewInternalError("failed to parse user roles", err).ToGRPCStatus()
 	}
 
-	// Generate Access Token
-	accessClaims := UserClaims{
-		UserID: user.Id,
-		Email:  user.Email,
-		Roles:  user.Roles,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.jwtAccessTokenDuration)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    s.jwtIssuer,
-			Subject:   user.Id,
-			ID:        uuid.NewString(),
-			Audience:  []string{"gopherservice_users"},
-		},
-	}
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
-	accessTokenString, err := accessToken.SignedString(s.jwtSecretKey)
+	// Generate JWT token using the new JWT manager
+	token, err := s.jwtManager.GenerateToken(user.Id, user.Email, user.Roles)
 	if err != nil {
-		return nil, errors.NewInternalError("failed to generate access token", err).ToGRPCStatus()
-	}
-
-	// Generate Refresh Token
-	refreshClaims := UserClaims{ // Refresh token might carry less info or just an ID
-		UserID: user.Id,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.jwtRefreshTokenDuration)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    s.jwtIssuer,
-			Subject:   user.Id,          // Linking refresh token to user
-			ID:        uuid.NewString(), // Unique ID for the refresh token itself
-		},
-	}
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshTokenString, err := refreshToken.SignedString(s.jwtSecretKey)
-	if err != nil {
-		return nil, errors.NewInternalError("failed to generate refresh token", err).ToGRPCStatus()
-	}
-
-	token := &v1.JWTToken{
-		AccessToken:  accessTokenString,
-		RefreshToken: refreshTokenString,
-		TokenType:    "Bearer",
-		ExpiresAt:    time.Now().Add(s.jwtAccessTokenDuration).Unix(),
+		return nil, errors.NewInternalError("failed to generate JWT token", err).ToGRPCStatus()
 	}
 
 	now := time.Now()
@@ -291,91 +256,39 @@ func (s *Service) Logout(_ context.Context, req *v1.LogoutRequest) (*v1.LogoutRe
 	return &v1.LogoutResponse{Message: "Successfully logged out. Please discard your token."}, nil
 }
 
-// RefreshToken is not fully implemented.
-// This refactor focuses on replacing JWT library, not implementing new features.
-// If RefreshToken were to be implemented with golang-jwt/jwt:
-// 1. Validate the incoming refresh token (req.RefreshToken) using jwt.ParseWithClaims.
-// 2. Check if it's a valid refresh token (e.g., not expired, correct issuer, present in a refresh token store if used).
-// 3. If valid, generate a new access token (and potentially a new refresh token - refresh token rotation).
-// 4. Return the new v1.JWTToken.
+// RefreshToken creates a new access token using a valid refresh token.
 func (s *Service) RefreshToken(ctx context.Context, req *v1.RefreshTokenRequest) (*v1.RefreshTokenResponse, error) {
 	if req.RefreshToken == "" {
 		return nil, errors.NewValidationError("refresh token is required").ToGRPCStatus()
 	}
 
-	// Placeholder for parsing the refresh token
-	claims := &UserClaims{}
-	token, err := jwt.ParseWithClaims(req.RefreshToken, claims, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.NewAuthenticationError("unexpected signing method: %v", token.Header["alg"].(string)).ToGRPCStatus()
+	// Create a function to get user details from the database
+	getUserDetails := func(userID string) (email string, roles []string, err error) {
+		var user v1.User
+		var rolesJSON string
+		err = s.db.QueryRowContext(ctx, "SELECT email, full_name, roles, is_active FROM users WHERE id = ?", userID).Scan(
+			&user.Email, &user.FullName, &rolesJSON, &user.IsActive,
+		)
+		if err != nil {
+			return "", nil, err
 		}
-		return s.jwtSecretKey, nil
-	})
+		if !user.IsActive {
+			return "", nil, errors.NewAuthorizationError("refresh_token", "user account is disabled")
+		}
+		if err := json.Unmarshal([]byte(rolesJSON), &user.Roles); err != nil {
+			return "", nil, err
+		}
+		return user.Email, user.Roles, nil
+	}
 
+	// Use the JWT manager to refresh the token
+	newToken, err := s.jwtManager.RefreshToken(req.RefreshToken, getUserDetails)
 	if err != nil {
-		s.logger.Warn("refresh token validation failed", "error", err)
-		return nil, errors.NewAuthenticationError("invalid refresh token").ToGRPCStatus()
+		s.logger.Warn("refresh token failed", "error", err)
+		return nil, errors.NewAuthenticationError("invalid or expired refresh token").ToGRPCStatus()
 	}
 
-	if !token.Valid || claims.UserID == "" {
-		return nil, errors.NewAuthenticationError("invalid refresh token claims").ToGRPCStatus()
-	}
-
-	// At this point, the refresh token is valid.
-	// We would typically check it against a store of active refresh tokens or a denylist.
-	// For this example, assume it's valid if parsed correctly and not expired.
-
-	// Fetch user details to ensure account is still active, roles haven't changed etc.
-	// This part is crucial in a real implementation.
-	// For now, we'll use the UserID from the refresh token claims.
-	var user v1.User
-	var rolesJSON string
-	err = s.db.QueryRowContext(ctx, "SELECT email, full_name, roles, is_active FROM users WHERE id = ?", claims.UserID).Scan(
-		&user.Email, &user.FullName, &rolesJSON, &user.IsActive,
-	)
-	if err != nil {
-		return nil, errors.NewInternalError("failed to find user for refresh token", err).ToGRPCStatus()
-	}
-	if !user.IsActive {
-		return nil, errors.NewAuthorizationError("refresh_token", "user account is disabled").ToGRPCStatus()
-	}
-	if err := json.Unmarshal([]byte(rolesJSON), &user.Roles); err != nil {
-		return nil, errors.NewInternalError("failed to parse user roles for refresh token", err).ToGRPCStatus()
-	}
-
-	// Generate new Access Token
-	newAccessClaims := UserClaims{
-		UserID: claims.UserID,
-		Email:  user.Email, // Use fresh email from DB
-		Roles:  user.Roles, // Use fresh roles from DB
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.jwtAccessTokenDuration)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    s.jwtIssuer,
-			Subject:   claims.UserID,
-			ID:        uuid.NewString(),
-			Audience:  []string{"gopherservice_users"},
-		},
-	}
-	newAccessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, newAccessClaims)
-	newAccessTokenString, err := newAccessToken.SignedString(s.jwtSecretKey)
-	if err != nil {
-		return nil, errors.NewInternalError("failed to generate new access token", err).ToGRPCStatus()
-	}
-
-	// Optionally, generate a new Refresh Token (rotation)
-	// For simplicity, we are not rotating refresh token here, but it's a good practice.
-	// If rotating, the old refresh token should be invalidated.
-
-	newToken := &v1.JWTToken{
-		AccessToken:  newAccessTokenString,
-		RefreshToken: req.RefreshToken, // Return the same refresh token or a new one if rotating
-		TokenType:    "Bearer",
-		ExpiresAt:    time.Now().Add(s.jwtAccessTokenDuration).Unix(),
-	}
-
-	s.logger.Info("access token refreshed", "user_id", claims.UserID)
+	s.logger.Info("access token refreshed", "user_id", "token_refreshed")
 	return &v1.RefreshTokenResponse{Token: newToken}, nil
 }
 

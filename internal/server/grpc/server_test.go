@@ -39,7 +39,7 @@ import (
 
 // Test constants.
 const (
-	testJWTSecretKey = "test-secret-key"
+	testJWTSecretKey = "test-secret-key-that-is-long-enough-32-chars"
 	testJWTIssuer    = "test-service"
 )
 

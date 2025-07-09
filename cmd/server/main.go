@@ -36,8 +36,7 @@ import (
 	"github.com/plindsay/gopherservice/internal/log"
 	"github.com/plindsay/gopherservice/internal/petstore"
 	grpcserver "github.com/plindsay/gopherservice/internal/server/grpc"
-
-	// "github.com/plindsay/gopherservice/pkg/auth" // Removed.
+	pkgauth "github.com/plindsay/gopherservice/pkg/auth"
 
 	v1 "github.com/plindsay/gopherservice/api/v1"
 )
@@ -136,7 +135,7 @@ func run(ctx context.Context, logger *slog.Logger, cfg *config.Config) error {
 	}()
 
 	// Start the HTTP server (gRPC-Gateway) in a goroutine.
-	// The gRPC-Gateway proxies HTTP requests to the gRPC server.
+	// The gRPC-Gateway proxies HTTP requests to the gRPC server with JWT authentication.
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	grpcEndpoint := fmt.Sprintf("localhost:%d", grpcPort)
@@ -149,9 +148,39 @@ func run(ctx context.Context, logger *slog.Logger, cfg *config.Config) error {
 		return fmt.Errorf("failed to register Auth gRPC-Gateway: %w", err)
 	}
 
+	// Create JWT manager for HTTP middleware
+	jwtManager, err := pkgauth.NewManager(pkgauth.Config{
+		SecretKey:            cfg.JWT.SecretKey,
+		AccessTokenDuration:  time.Duration(cfg.JWT.TokenDuration) * time.Minute,
+		RefreshTokenDuration: time.Duration(cfg.JWT.RefreshDuration) * time.Minute,
+		Issuer:               cfg.Telemetry.ServiceName,
+		Audience:             []string{"api"},
+	}, logger)
+	if err != nil {
+		return fmt.Errorf("failed to create JWT manager for HTTP: %w", err)
+	}
+
+	// Create HTTP middleware for JWT authentication
+	httpMiddleware := pkgauth.NewAdvancedHTTPMiddleware(jwtManager, logger)
+
+	// Configure public HTTP paths
+	for _, path := range pkgauth.PublicPaths() {
+		httpMiddleware.AddPublicPath(path)
+	}
+
+	// Configure role-based access control for HTTP paths
+	for path, roles := range pkgauth.DefaultHTTPRoleRequirements() {
+		httpMiddleware.AddRoleRequirement(path, roles)
+	}
+
+	// Configure pattern-based role requirements
+	httpMiddleware.AddPathPattern("/v1/users/", []string{"user", "admin"})
+	httpMiddleware.AddPathPattern("/v1/pets/", []string{"user", "admin"})
+	httpMiddleware.AddPathPattern("/v1/orders/", []string{"user", "admin"})
+
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", httpPort),
-		Handler: mux,
+		Handler: httpMiddleware.Handler(mux),
 	}
 
 	go func() {

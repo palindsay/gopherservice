@@ -8,7 +8,7 @@ These examples demonstrate the full authentication flow (user registration, logi
 
 1.  **Start the `gopherservice` server in a separate terminal:**
     ```bash
-    JWT_SECRET_KEY="supersecretjwtkey" DATABASE_DSN="/tmp/gopherservice.db" OTEL_EXPORTER_OTLP_ENDPOINT="" ./gopherservice
+    JWT_SECRET_KEY="supersecretjwtkey_at_least_32_characters_long" DATABASE_DSN="/tmp/gopherservice.db" OTEL_EXPORTER_OTLP_ENDPOINT="" ./gopherservice
     ```
     (Keep this terminal open while running the client examples.)
 
