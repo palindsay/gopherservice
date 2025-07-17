@@ -1,4 +1,4 @@
-// Copyright 2025 Paddy Lindsay
+// Copyright 2025 Phillip Lindsay
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,8 +45,9 @@ import (
 func main() {
 	flag.Parse()
 
-	// Initialize logger for structured logging using Go's native slog.
-	logger := log.New()
+	// Initialize enhanced logger configured from environment variables.
+	enhancedLogger := log.NewFromEnv()
+	logger := enhancedLogger.Logger
 
 	// Load application configuration from config.yaml.
 	cfg, err := config.Load()

@@ -1,4 +1,4 @@
-// Copyright 2025 Paddy Lindsay
+// Copyright 2025 Phillip Lindsay
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ import (
 	v1 "github.com/plindsay/gopherservice/api/v1"
 	"github.com/plindsay/gopherservice/internal/auth"
 	"github.com/plindsay/gopherservice/internal/database"
-	// pkgauth "github.com/plindsay/gopherservice/pkg/auth" // Removed.
+	pkgauth "github.com/plindsay/gopherservice/pkg/auth"
 )
 
 var (
@@ -121,7 +121,7 @@ func TestAuthService_Login(t *testing.T) {
 
 	// Optionally, parse and verify claims if needed for specific tests
 	// For now, checking presence and basic fields is sufficient for this test.
-	claims := &auth.UserClaims{}
+	claims := &pkgauth.Claims{}
 	token, err := jwt.ParseWithClaims(res.Token.AccessToken, claims, func(_ *jwt.Token) (interface{}, error) {
 		return []byte(testJWTSecretKey), nil
 	})

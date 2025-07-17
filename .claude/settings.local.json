@@ -20,7 +20,15 @@
       "Bash(JWT_SECRET_KEY=\"supersecretjwtkey_at_least_32_characters_long\" DATABASE_DSN=\"/tmp/gopherservice_test.db\" OTEL_EXPORTER_OTLP_ENDPOINT=\"http://localhost:4317\" timeout 5s ./gopherservice)",
       "Bash(./examples/grpc/grpc-client:*)",
       "Bash(./examples/http/http-client:*)",
-      "Bash(go run:*)"
+      "Bash(go run:*)",
+      "Bash(go list:*)",
+      "Bash(go get:*)",
+      "Bash(sudo apt-get:*)",
+      "Bash(sudo apt-get install:*)",
+      "Bash(ls:*)",
+      "Bash(golangci-lint run:*)",
+      "Bash(timeout:*)",
+      "Bash(./bin/gopherservice:*)"
     ],
     "deny": []
   }

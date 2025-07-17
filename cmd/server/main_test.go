@@ -1,4 +1,4 @@
-// Copyright 2025 Paddy Lindsay
+// Copyright 2025 Phillip Lindsay
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ func TestRun(t *testing.T) {
 	cfg.Telemetry.ServiceName = "test-service"
 	cfg.Telemetry.Endpoint = "" // Empty endpoint for testing
 
-	logger := log.New()
+	logger := log.NewWithDefaults().Logger
 
 	// Create a context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -182,7 +182,7 @@ func TestRun_InvalidConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := log.New()
+			logger := log.NewWithDefaults().Logger
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 

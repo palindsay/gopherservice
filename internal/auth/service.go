@@ -1,4 +1,4 @@
-// Copyright 2025 Paddy Lindsay
+// Copyright 2025 Phillip Lindsay
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,9 +33,6 @@ import (
 	"github.com/plindsay/gopherservice/pkg/auth"
 	"github.com/plindsay/gopherservice/pkg/errors"
 )
-
-// UserClaims is an alias for the auth package Claims for backward compatibility.
-type UserClaims = auth.Claims
 
 // GetJWTManager returns the JWT manager for testing purposes.
 func (s *Service) GetJWTManager() *auth.Manager {
