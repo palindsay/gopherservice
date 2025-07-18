@@ -43,7 +43,13 @@
       "Bash(go:*)",
       "Bash(DATABASE_DSN=\"test_gopherservice.db\" JWT_SECRET_KEY=\"this-is-a-very-long-secret-key-for-testing-purposes-and-should-be-secure\" OTEL_EXPORTER_OTLP_ENDPOINT=\"\" timeout 5s ./gopherservice)",
       "Bash(./gopherservice --help)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(JWT_SECRET_KEY=\"development-jwt-secret-key-that-meets-minimum-requirements\" timeout 5 make run)",
+      "Bash(DATABASE_DSN=\"sqlite:///tmp/gopherservice_test.db\" JWT_SECRET_KEY=\"development-jwt-secret-key-that-meets-minimum-requirements\" timeout 5 make run)",
+      "Bash(DATABASE_DSN=\"sqlite://file:memdb1?mode=memory&cache=shared\" JWT_SECRET_KEY=\"development-jwt-secret-key-that-meets-minimum-requirements\" timeout 5 make run)",
+      "Bash(DATABASE_DSN=\":memory:\" JWT_SECRET_KEY=\"development-jwt-secret-key-that-meets-minimum-requirements\" timeout 5 make run)",
+      "Bash(DATABASE_DSN=\":memory:\" JWT_SECRET_KEY=\"development-jwt-secret-key-that-meets-minimum-requirements\" OTEL_EXPORTER_OTLP_ENDPOINT=\"\" timeout 5 make run)",
+      "Bash(killall:*)"
     ],
     "deny": []
   }

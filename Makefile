@@ -72,6 +72,14 @@ build: generate
 
 .PHONY: run
 run: build
+	@if [ -z "$(JWT_SECRET_KEY)" ]; then \
+		echo "ERROR: JWT_SECRET_KEY environment variable is not set."; \
+		echo "Please set it with a value of at least 32 characters:"; \
+		echo "  export JWT_SECRET_KEY=\"your-super-secret-jwt-key-that-is-at-least-32-characters-long\""; \
+		echo "Or run with:"; \
+		echo "  JWT_SECRET_KEY=\"your-super-secret-jwt-key-that-is-at-least-32-characters-long\" make run"; \
+		exit 1; \
+	fi
 	./gopherservice
 
 .PHONY: test
@@ -94,7 +102,7 @@ run-examples:
 	@echo "Building gopherservice..."
 	go build -o gopherservice ./cmd/server
 	@echo "Starting gopherservice..."
-	DATABASE_DSN="sqlite:///tmp/gopherservice_run_example.db" OTEL_EXPORTER_OTLP_ENDPOINT="" ./gopherservice &
+	DATABASE_DSN=":memory:" OTEL_EXPORTER_OTLP_ENDPOINT="" JWT_SECRET_KEY="example-jwt-secret-key-that-is-at-least-32-characters-long" ./gopherservice &
 	@echo "Building and running gRPC example..."
 	go build -o examples/grpc/grpc-client ./examples/grpc
 	./examples/grpc/grpc-client
