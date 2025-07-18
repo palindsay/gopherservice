@@ -38,9 +38,44 @@ A production-ready Go microservice implementing a Pet Store API with modern obse
 ## Quick Start
 
 ### Prerequisites
-- Go 1.24 or later
-- Protocol Buffers compiler (`protoc`)
-- Docker and Docker Compose (optional)
+
+#### Required Dependencies
+- **Go 1.24 or later** - [Download from golang.org](https://golang.org/dl/)
+- **Protocol Buffers compiler (`protoc`)** - Required for code generation
+
+#### Optional Dependencies
+- **Docker and Docker Compose** - For containerized deployment
+- **grpcurl** - For testing gRPC endpoints ([install guide](https://github.com/fullstorydev/grpcurl#installation))
+
+### Installing Dependencies
+
+1.  **Install all dependencies at once:**
+    ```bash
+    make install-deps
+    ```
+    This will:
+    - Check if `protoc` is installed (and provide installation instructions if not)
+    - Install all Go development tools (protoc plugins, linter, etc.)
+    - Download all Go module dependencies
+
+2.  **Manual installation of protoc (if needed):**
+    
+    **macOS:**
+    ```bash
+    brew install protobuf
+    ```
+    
+    **Ubuntu/Debian:**
+    ```bash
+    sudo apt-get update && sudo apt-get install -y protobuf-compiler
+    ```
+    
+    **Fedora:**
+    ```bash
+    sudo dnf install protobuf-compiler
+    ```
+    
+    **Other platforms:** Download from [GitHub releases](https://github.com/protocolbuffers/protobuf/releases)
 
 ### Initial Setup
 
@@ -50,24 +85,70 @@ A production-ready Go microservice implementing a Pet Store API with modern obse
     cd gopherservice
     ```
 
-2.  **Install dependencies and generate code:**
+2.  **Install all dependencies:**
     ```bash
-    make deps     # Install protoc plugins and tools
+    make install-deps  # Installs protoc and all Go tools
+    ```
+
+3.  **Generate code and prepare project:**
+    ```bash
     make generate # Generate Go code from .proto files
     make tidy     # Clean up Go modules
     ```
 
-3.  **Build and test:**
+4.  **Build and test:**
     ```bash
     make build    # Build the service
     make test     # Run unit tests
     make lint     # Run code quality checks
     ```
 
-4.  **Complete build pipeline:**
+5.  **Complete build pipeline:**
     ```bash
     make build-all  # Run deps, generate, build, test, and lint
     ```
+
+### Verifying Installation
+
+To verify that all dependencies are properly installed:
+
+```bash
+# Check Go version
+go version
+
+# Check protoc version  
+protoc --version
+
+# Check that all Go tools are installed
+which protoc-gen-go protoc-gen-go-grpc protoc-gen-grpc-gateway golangci-lint
+
+# Test complete build pipeline
+make build-all
+```
+
+### Troubleshooting Installation
+
+**Common Issues:**
+
+1. **`protoc: command not found`**
+   - Run `make install-protoc` for installation instructions
+   - Ensure protoc is in your PATH
+
+2. **`protoc-gen-go: command not found`**
+   - Run `make deps` to install Go protoc plugins
+   - Ensure `$GOPATH/bin` or `$HOME/go/bin` is in your PATH
+
+3. **Permission denied when installing protoc**
+   - On Linux/macOS: Use `sudo` with package managers
+   - Or install to user directory without sudo
+
+4. **Go module issues**
+   - Run `make tidy` to clean up dependencies
+   - Ensure you're using Go 1.24 or later
+
+**Getting Help:**
+- Run `make help` to see all available targets
+- Check that `go env GOPATH` and `go env GOBIN` are set correctly
 
 ## Building the Service
 
@@ -396,7 +477,9 @@ Generated files:
 ### Make Targets
 | Command | Description |
 |---------|-------------|
-| `make deps` | Install development dependencies |
+| `make install-deps` | Install all system and Go dependencies |
+| `make install-protoc` | Check/install Protocol Buffers compiler |
+| `make deps` | Install Go development tools only |
 | `make generate` | Generate code from proto files |
 | `make build` | Build the service executable |
 | `make test` | Run unit tests with coverage |

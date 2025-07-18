@@ -39,6 +39,6 @@ gopherservice.pid
 # Third party dependencies
 third_party/
 
-# Diagram files
-gopherservice.drawio
+# Documentation
+docs/
 

@@ -28,7 +28,21 @@
       "Bash(ls:*)",
       "Bash(golangci-lint run:*)",
       "Bash(timeout:*)",
-      "Bash(./bin/gopherservice:*)"
+      "Bash(./bin/gopherservice:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(protoc:*)",
+      "Bash(JWT_SECRET_KEY=\"test-secret\" timeout 5s ./gopherservice)",
+      "Bash(JWT_SECRET_KEY=\"this-is-a-very-long-secret-key-for-testing-purposes\" timeout 5s ./gopherservice)",
+      "Bash(DATABASE_DSN=\"sqlite://./test.db\" JWT_SECRET_KEY=\"this-is-a-very-long-secret-key-for-testing-purposes\" timeout 5s ./gopherservice)",
+      "Bash(DATABASE_DSN=\"gopherservice.db\" JWT_SECRET_KEY=\"this-is-a-very-long-secret-key-for-testing-purposes\" OTEL_EXPORTER_OTLP_ENDPOINT=\"\" timeout 3s ./gopherservice)",
+      "Bash(true)",
+      "Bash(PATH=\"/tmp:$PATH\" make install-protoc)",
+      "Bash(PATH=\"\" make install-protoc)",
+      "Bash(env PATH=\"/bin:/usr/bin\" make install-protoc)",
+      "Bash(go:*)",
+      "Bash(DATABASE_DSN=\"test_gopherservice.db\" JWT_SECRET_KEY=\"this-is-a-very-long-secret-key-for-testing-purposes-and-should-be-secure\" OTEL_EXPORTER_OTLP_ENDPOINT=\"\" timeout 5s ./gopherservice)",
+      "Bash(./gopherservice --help)"
     ],
     "deny": []
   }

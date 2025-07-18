@@ -6,6 +6,8 @@ help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Targets:"
+	@echo "  install-deps Install all system and Go dependencies"
+	@echo "  install-protoc Install Protocol Buffers compiler"
 	@echo "  clean      Remove build artifacts"
 	@echo "  deps       Install/update Go tool dependencies"
 	@echo "  generate   Generate Go code from protobuf definitions"
@@ -16,6 +18,31 @@ help:
 	@echo "  tidy       Tidy go.mod and go.sum files"
 	@echo "  build-all  Build, test, and lint the entire project"
 	@echo "  run-examples Build and run gRPC and HTTP examples"
+
+.PHONY: install-protoc
+install-protoc:
+	@echo "Installing Protocol Buffers compiler..."
+	@if command -v protoc >/dev/null 2>&1; then \
+		echo "protoc is already installed: $$(protoc --version)"; \
+	else \
+		echo "protoc not found. Please install it using one of these methods:"; \
+		echo ""; \
+		echo "On macOS:"; \
+		echo "  brew install protobuf"; \
+		echo ""; \
+		echo "On Ubuntu/Debian:"; \
+		echo "  sudo apt-get update && sudo apt-get install -y protobuf-compiler"; \
+		echo ""; \
+		echo "On Fedora:"; \
+		echo "  sudo dnf install protobuf-compiler"; \
+		echo ""; \
+		echo "Or download from: https://github.com/protocolbuffers/protobuf/releases"; \
+		exit 1; \
+	fi
+
+.PHONY: install-deps
+install-deps: install-protoc deps
+	@echo "All dependencies installed successfully!"
 
 .PHONY: clean
 clean:
@@ -29,10 +56,11 @@ deps:
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go mod download
 
 .PHONY: generate
 generate:
-	protoc -I . -I third_party/googleapis \
+	protoc -I . -I third_party/googleapis -I /usr/local/include \
 		--go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		--grpc-gateway_out=. --grpc-gateway_opt=paths=source_relative \
