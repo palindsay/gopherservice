@@ -18,10 +18,11 @@ env:
 jobs:
   test:
     name: Test and Build
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        go-version: ['1.23', '1.24']
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,8 +32,28 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ matrix.go-version }}
           cache: true
+
+      - name: Install Protocol Buffers compiler (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install Protocol Buffers compiler (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install protobuf
+
+      - name: Install Protocol Buffers compiler (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install protoc
+
+      - name: Install dependencies and generate code
+        run: |
+          make deps
+          make generate
 
       - name: Download dependencies
         run: go mod download
@@ -67,6 +88,16 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
+      - name: Install Protocol Buffers compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install dependencies and generate code
+        run: |
+          make deps
+          make generate
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
@@ -80,6 +111,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install Protocol Buffers compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install dependencies and generate code
+        run: |
+          make deps
+          make generate
+
       - name: Run Gosec Security Scanner
         uses: securego/gosec@master
         with:
@@ -89,3 +136,43 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gosec-results.sarif
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    if: ${{ needs.test.result == 'success' && needs.lint.result == 'success' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.4'
+          cache: true
+
+      - name: Install Protocol Buffers compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install dependencies and generate code
+        run: |
+          make deps
+          make generate
+
+      - name: Build application
+        run: make build
+
+      - name: Run integration tests (examples)
+        env:
+          JWT_SECRET_KEY: integration-test-secret-key
+          DATABASE_DSN: sqlite:///tmp/integration-test.db
+        run: |
+          # Run the examples which demonstrate full end-to-end functionality
+          timeout 60 make run-examples || {
+            echo "Integration test failed or timed out"
+            exit 1
+          }

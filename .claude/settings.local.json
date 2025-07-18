@@ -42,7 +42,8 @@
       "Bash(env PATH=\"/bin:/usr/bin\" make install-protoc)",
       "Bash(go:*)",
       "Bash(DATABASE_DSN=\"test_gopherservice.db\" JWT_SECRET_KEY=\"this-is-a-very-long-secret-key-for-testing-purposes-and-should-be-secure\" OTEL_EXPORTER_OTLP_ENDPOINT=\"\" timeout 5s ./gopherservice)",
-      "Bash(./gopherservice --help)"
+      "Bash(./gopherservice --help)",
+      "Bash(python3:*)"
     ],
     "deny": []
   }
