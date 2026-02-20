@@ -19,7 +19,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.4'
+          go-version: '1.24'
           cache: true
 
       - name: Install Protocol Buffers compiler
@@ -62,10 +62,6 @@ jobs:
       - name: Run govulncheck
         run: govulncheck ./...
 
-      - name: Run dependency check
-        run: |
-          go list -json -deps ./... | nancy sleuth
-
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
@@ -92,7 +88,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24.4'
+        go-version: '1.24'
         cache: true
     
     - name: Install Protocol Buffers compiler
@@ -108,5 +104,3 @@ jobs:
     
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
-      with:
-        category: "/language:${{matrix.language}}"

@@ -1,6 +1,8 @@
 module github.com/plindsay/gopherservice
 
-go 1.24.4
+go 1.24.0
+
+toolchain go1.24.3
 
 require (
 	github.com/glebarez/go-sqlite v1.22.0

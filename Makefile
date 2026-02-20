@@ -41,8 +41,16 @@ install-protoc:
 	fi
 
 .PHONY: install-deps
-install-deps: install-protoc deps
+install-deps: install-protoc deps googleapis
 	@echo "All dependencies installed successfully!"
+
+.PHONY: googleapis
+googleapis:
+	@if [ ! -d "third_party/googleapis" ]; then \
+		echo "Downloading googleapis..."; \
+		mkdir -p third_party; \
+		git clone --depth 1 https://github.com/googleapis/googleapis.git third_party/googleapis; \
+	fi
 
 .PHONY: clean
 clean:
@@ -59,7 +67,7 @@ deps:
 	go mod download
 
 .PHONY: generate
-generate:
+generate: googleapis
 	protoc -I . -I third_party/googleapis -I /usr/local/include \
 		--go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
